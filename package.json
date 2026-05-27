@@ -1,0 +1,24 @@
+{
+  "name": "freecaloriesapp",
+  "private": true,
+  "packageManager": "pnpm@10.30.3",
+  "engines": {
+    "node": ">=22"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  },
+  "scripts": {
+    "dev": "pnpm --filter @calories/web dev",
+    "build": "pnpm --filter @calories/web build",
+    "preview": "pnpm --filter @calories/web preview",
+    "typecheck": "pnpm --filter @calories/web exec tsc -b",
+    "test": "pnpm --filter @calories/web test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/freeappstore-online/calories.git"
+  }
+}

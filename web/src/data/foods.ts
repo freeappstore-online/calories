@@ -1,0 +1,236 @@
+import type { FoodItem, ServingSize } from "./types";
+
+/** All nutritional values are per 100g */
+export const foods: FoodItem[] = [
+  // ── Fruits ──
+  { id: "apple", name: "Apple", category: "fruits", calories: 52, protein: 0.3, carbs: 14, fat: 0.2, fiber: 2.4, sugar: 10 },
+  { id: "banana", name: "Banana", category: "fruits", calories: 89, protein: 1.1, carbs: 23, fat: 0.3, fiber: 2.6, sugar: 12 },
+  { id: "orange", name: "Orange", category: "fruits", calories: 47, protein: 0.9, carbs: 12, fat: 0.1, fiber: 2.4, sugar: 9 },
+  { id: "strawberry", name: "Strawberry", category: "fruits", calories: 32, protein: 0.7, carbs: 7.7, fat: 0.3, fiber: 2, sugar: 4.9 },
+  { id: "blueberry", name: "Blueberry", category: "fruits", calories: 57, protein: 0.7, carbs: 14, fat: 0.3, fiber: 2.4, sugar: 10 },
+  { id: "grapes", name: "Grapes", category: "fruits", calories: 69, protein: 0.7, carbs: 18, fat: 0.2, fiber: 0.9, sugar: 16 },
+  { id: "watermelon", name: "Watermelon", category: "fruits", calories: 30, protein: 0.6, carbs: 7.6, fat: 0.2, fiber: 0.4, sugar: 6.2 },
+  { id: "mango", name: "Mango", category: "fruits", calories: 60, protein: 0.8, carbs: 15, fat: 0.4, fiber: 1.6, sugar: 14 },
+  { id: "avocado", name: "Avocado", category: "fruits", calories: 160, protein: 2, carbs: 8.5, fat: 15, fiber: 6.7, sugar: 0.7 },
+  { id: "pineapple", name: "Pineapple", category: "fruits", calories: 50, protein: 0.5, carbs: 13, fat: 0.1, fiber: 1.4, sugar: 10 },
+  { id: "peach", name: "Peach", category: "fruits", calories: 39, protein: 0.9, carbs: 10, fat: 0.3, fiber: 1.5, sugar: 8.4 },
+  { id: "pear", name: "Pear", category: "fruits", calories: 57, protein: 0.4, carbs: 15, fat: 0.1, fiber: 3.1, sugar: 10 },
+  { id: "cherry", name: "Cherries", category: "fruits", calories: 50, protein: 1, carbs: 12, fat: 0.3, fiber: 1.6, sugar: 8 },
+
+  // ── Vegetables ──
+  { id: "broccoli", name: "Broccoli", category: "vegetables", calories: 34, protein: 2.8, carbs: 7, fat: 0.4, fiber: 2.6, sugar: 1.7 },
+  { id: "spinach", name: "Spinach", category: "vegetables", calories: 23, protein: 2.9, carbs: 3.6, fat: 0.4, fiber: 2.2, sugar: 0.4 },
+  { id: "carrot", name: "Carrot", category: "vegetables", calories: 41, protein: 0.9, carbs: 10, fat: 0.2, fiber: 2.8, sugar: 4.7 },
+  { id: "tomato", name: "Tomato", category: "vegetables", calories: 18, protein: 0.9, carbs: 3.9, fat: 0.2, fiber: 1.2, sugar: 2.6 },
+  { id: "potato", name: "Potato", category: "vegetables", calories: 77, protein: 2, carbs: 17, fat: 0.1, fiber: 2.2, sugar: 0.8 },
+  { id: "sweet-potato", name: "Sweet Potato", category: "vegetables", calories: 86, protein: 1.6, carbs: 20, fat: 0.1, fiber: 3, sugar: 4.2 },
+  { id: "onion", name: "Onion", category: "vegetables", calories: 40, protein: 1.1, carbs: 9.3, fat: 0.1, fiber: 1.7, sugar: 4.2 },
+  { id: "cucumber", name: "Cucumber", category: "vegetables", calories: 15, protein: 0.7, carbs: 3.6, fat: 0.1, fiber: 0.5, sugar: 1.7 },
+  { id: "bell-pepper", name: "Bell Pepper", category: "vegetables", calories: 31, protein: 1, carbs: 6, fat: 0.3, fiber: 2.1, sugar: 4.2 },
+  { id: "lettuce", name: "Lettuce", category: "vegetables", calories: 15, protein: 1.4, carbs: 2.9, fat: 0.2, fiber: 1.3, sugar: 0.8 },
+  { id: "mushroom", name: "Mushroom", category: "vegetables", calories: 22, protein: 3.1, carbs: 3.3, fat: 0.3, fiber: 1, sugar: 2 },
+  { id: "zucchini", name: "Zucchini", category: "vegetables", calories: 17, protein: 1.2, carbs: 3.1, fat: 0.3, fiber: 1, sugar: 2.5 },
+  { id: "cauliflower", name: "Cauliflower", category: "vegetables", calories: 25, protein: 1.9, carbs: 5, fat: 0.3, fiber: 2, sugar: 1.9 },
+  { id: "green-beans", name: "Green Beans", category: "vegetables", calories: 31, protein: 1.8, carbs: 7, fat: 0.1, fiber: 3.4, sugar: 3.3 },
+  { id: "corn", name: "Corn", category: "vegetables", calories: 86, protein: 3.3, carbs: 19, fat: 1.4, fiber: 2.7, sugar: 6.3 },
+
+  // ── Protein ──
+  { id: "chicken-breast", name: "Chicken Breast", category: "protein", calories: 165, protein: 31, carbs: 0, fat: 3.6, fiber: 0, sugar: 0 },
+  { id: "salmon", name: "Salmon", category: "protein", calories: 208, protein: 20, carbs: 0, fat: 13, fiber: 0, sugar: 0 },
+  { id: "beef-steak", name: "Beef Steak", category: "protein", calories: 271, protein: 26, carbs: 0, fat: 18, fiber: 0, sugar: 0 },
+  { id: "eggs", name: "Eggs", category: "protein", calories: 155, protein: 13, carbs: 1.1, fat: 11, fiber: 0, sugar: 1.1 },
+  { id: "tofu", name: "Tofu", category: "protein", calories: 76, protein: 8, carbs: 1.9, fat: 4.8, fiber: 0.3, sugar: 0.6 },
+  { id: "tuna", name: "Tuna", category: "protein", calories: 132, protein: 28, carbs: 0, fat: 1.3, fiber: 0, sugar: 0 },
+  { id: "shrimp", name: "Shrimp", category: "protein", calories: 99, protein: 24, carbs: 0.2, fat: 0.3, fiber: 0, sugar: 0 },
+  { id: "turkey", name: "Turkey", category: "protein", calories: 135, protein: 30, carbs: 0, fat: 1, fiber: 0, sugar: 0 },
+  { id: "pork-chop", name: "Pork Chop", category: "protein", calories: 231, protein: 25, carbs: 0, fat: 14, fiber: 0, sugar: 0 },
+  { id: "greek-yogurt", name: "Greek Yogurt", category: "protein", calories: 59, protein: 10, carbs: 3.6, fat: 0.7, fiber: 0, sugar: 3.2 },
+  { id: "bacon", name: "Bacon", category: "protein", calories: 541, protein: 37, carbs: 1.4, fat: 42, fiber: 0, sugar: 0 },
+  { id: "lamb", name: "Lamb", category: "protein", calories: 294, protein: 25, carbs: 0, fat: 21, fiber: 0, sugar: 0 },
+  { id: "tempeh", name: "Tempeh", category: "protein", calories: 192, protein: 20, carbs: 7.6, fat: 11, fiber: 0, sugar: 0 },
+
+  // ── Grains ──
+  { id: "white-rice", name: "White Rice (cooked)", category: "grains", calories: 130, protein: 2.7, carbs: 28, fat: 0.3, fiber: 0.4, sugar: 0 },
+  { id: "brown-rice", name: "Brown Rice (cooked)", category: "grains", calories: 123, protein: 2.7, carbs: 26, fat: 1, fiber: 1.8, sugar: 0.4 },
+  { id: "oatmeal", name: "Oatmeal (cooked)", category: "grains", calories: 68, protein: 2.4, carbs: 12, fat: 1.4, fiber: 1.7, sugar: 0.3 },
+  { id: "bread-white", name: "Bread (White)", category: "grains", calories: 265, protein: 9, carbs: 49, fat: 3.2, fiber: 2.7, sugar: 5 },
+  { id: "bread-whole-wheat", name: "Bread (Whole Wheat)", category: "grains", calories: 247, protein: 13, carbs: 41, fat: 3.4, fiber: 7, sugar: 6 },
+  { id: "pasta", name: "Pasta (cooked)", category: "grains", calories: 131, protein: 5, carbs: 25, fat: 1.1, fiber: 1.8, sugar: 0.6 },
+  { id: "quinoa", name: "Quinoa (cooked)", category: "grains", calories: 120, protein: 4.4, carbs: 21, fat: 1.9, fiber: 2.8, sugar: 0.9 },
+  { id: "tortilla", name: "Tortilla (flour)", category: "grains", calories: 312, protein: 8.2, carbs: 52, fat: 8.4, fiber: 2.1, sugar: 3.6 },
+  { id: "bagel", name: "Bagel", category: "grains", calories: 257, protein: 10, carbs: 50, fat: 1.6, fiber: 2.3, sugar: 6 },
+  { id: "cereal", name: "Cereal (Corn Flakes)", category: "grains", calories: 357, protein: 7.5, carbs: 84, fat: 0.4, fiber: 3.3, sugar: 8 },
+  { id: "crackers", name: "Crackers (Wheat)", category: "grains", calories: 421, protein: 9, carbs: 69, fat: 14, fiber: 3, sugar: 8 },
+
+  // ── Dairy ──
+  { id: "whole-milk", name: "Whole Milk", category: "dairy", calories: 61, protein: 3.2, carbs: 4.8, fat: 3.3, fiber: 0, sugar: 5.1 },
+  { id: "skim-milk", name: "Skim Milk", category: "dairy", calories: 34, protein: 3.4, carbs: 5, fat: 0.1, fiber: 0, sugar: 5 },
+  { id: "cheddar-cheese", name: "Cheddar Cheese", category: "dairy", calories: 403, protein: 25, carbs: 1.3, fat: 33, fiber: 0, sugar: 0.5 },
+  { id: "mozzarella", name: "Mozzarella", category: "dairy", calories: 280, protein: 28, carbs: 3.1, fat: 17, fiber: 0, sugar: 1.2 },
+  { id: "cottage-cheese", name: "Cottage Cheese", category: "dairy", calories: 98, protein: 11, carbs: 3.4, fat: 4.3, fiber: 0, sugar: 2.7 },
+  { id: "butter", name: "Butter", category: "dairy", calories: 717, protein: 0.9, carbs: 0.1, fat: 81, fiber: 0, sugar: 0.1 },
+  { id: "cream-cheese", name: "Cream Cheese", category: "dairy", calories: 342, protein: 5.9, carbs: 4.1, fat: 34, fiber: 0, sugar: 3.8 },
+  { id: "yogurt", name: "Yogurt (Plain)", category: "dairy", calories: 61, protein: 3.5, carbs: 4.7, fat: 3.3, fiber: 0, sugar: 4.7 },
+  { id: "ice-cream", name: "Ice Cream (Vanilla)", category: "dairy", calories: 207, protein: 3.5, carbs: 24, fat: 11, fiber: 0.7, sugar: 21 },
+
+  // ── Snacks ──
+  { id: "almonds", name: "Almonds", category: "snacks", calories: 579, protein: 21, carbs: 22, fat: 50, fiber: 12, sugar: 4.4 },
+  { id: "peanut-butter", name: "Peanut Butter", category: "snacks", calories: 588, protein: 25, carbs: 20, fat: 50, fiber: 6, sugar: 9.2 },
+  { id: "dark-chocolate", name: "Dark Chocolate", category: "snacks", calories: 546, protein: 5, carbs: 60, fat: 31, fiber: 7, sugar: 48 },
+  { id: "granola-bar", name: "Granola Bar", category: "snacks", calories: 471, protein: 10, carbs: 64, fat: 20, fiber: 4, sugar: 28 },
+  { id: "chips", name: "Chips (Potato)", category: "snacks", calories: 536, protein: 7, carbs: 53, fat: 35, fiber: 4.4, sugar: 0.3 },
+  { id: "popcorn", name: "Popcorn (air-popped)", category: "snacks", calories: 387, protein: 13, carbs: 78, fat: 4.5, fiber: 15, sugar: 0.9 },
+  { id: "trail-mix", name: "Trail Mix", category: "snacks", calories: 462, protein: 14, carbs: 45, fat: 29, fiber: 5, sugar: 25 },
+  { id: "hummus", name: "Hummus", category: "snacks", calories: 166, protein: 8, carbs: 14, fat: 10, fiber: 6, sugar: 0.3 },
+  { id: "pretzels", name: "Pretzels", category: "snacks", calories: 380, protein: 9, carbs: 80, fat: 3.5, fiber: 2.8, sugar: 2 },
+  { id: "rice-cake", name: "Rice Cake", category: "snacks", calories: 387, protein: 8, carbs: 82, fat: 2.8, fiber: 1.5, sugar: 0.3 },
+
+  // ── Beverages ──
+  { id: "coffee-black", name: "Coffee (Black)", category: "beverages", calories: 2, protein: 0.3, carbs: 0, fat: 0, fiber: 0, sugar: 0 },
+  { id: "orange-juice", name: "Orange Juice", category: "beverages", calories: 45, protein: 0.7, carbs: 10, fat: 0.2, fiber: 0.2, sugar: 8.4 },
+  { id: "cola", name: "Cola", category: "beverages", calories: 42, protein: 0, carbs: 11, fat: 0, fiber: 0, sugar: 11 },
+  { id: "beer", name: "Beer", category: "beverages", calories: 43, protein: 0.5, carbs: 3.6, fat: 0, fiber: 0, sugar: 0 },
+  { id: "wine", name: "Wine (Red)", category: "beverages", calories: 85, protein: 0.1, carbs: 2.6, fat: 0, fiber: 0, sugar: 0.6 },
+  { id: "protein-shake", name: "Protein Shake", category: "beverages", calories: 113, protein: 20, carbs: 6, fat: 1.5, fiber: 1, sugar: 3 },
+  { id: "smoothie", name: "Smoothie (Fruit)", category: "beverages", calories: 62, protein: 1, carbs: 14, fat: 0.3, fiber: 1.2, sugar: 11 },
+  { id: "green-tea", name: "Green Tea", category: "beverages", calories: 1, protein: 0.2, carbs: 0, fat: 0, fiber: 0, sugar: 0 },
+  { id: "latte", name: "Latte (Whole Milk)", category: "beverages", calories: 56, protein: 3, carbs: 5, fat: 3, fiber: 0, sugar: 5 },
+
+  // ── Meals ──
+  { id: "pizza-slice", name: "Pizza Slice", category: "meals", calories: 266, protein: 11, carbs: 33, fat: 10, fiber: 2.3, sugar: 3.6 },
+  { id: "burger", name: "Burger", category: "meals", calories: 295, protein: 17, carbs: 24, fat: 14, fiber: 1.3, sugar: 5 },
+  { id: "chicken-sandwich", name: "Chicken Sandwich", category: "meals", calories: 283, protein: 23, carbs: 28, fat: 9, fiber: 1.5, sugar: 4 },
+  { id: "caesar-salad", name: "Caesar Salad", category: "meals", calories: 127, protein: 7, carbs: 7, fat: 8, fiber: 1.5, sugar: 1.8 },
+  { id: "sushi-roll", name: "Sushi Roll", category: "meals", calories: 143, protein: 6, carbs: 24, fat: 3, fiber: 1, sugar: 5 },
+  { id: "burrito", name: "Burrito", category: "meals", calories: 206, protein: 10, carbs: 25, fat: 7.5, fiber: 3, sugar: 1.5 },
+  { id: "pad-thai", name: "Pad Thai", category: "meals", calories: 192, protein: 9, carbs: 24, fat: 7, fiber: 1.5, sugar: 6 },
+  { id: "fried-rice", name: "Fried Rice", category: "meals", calories: 163, protein: 4.5, carbs: 24, fat: 5.5, fiber: 1, sugar: 1.2 },
+  { id: "taco", name: "Taco", category: "meals", calories: 226, protein: 12, carbs: 20, fat: 11, fiber: 2, sugar: 2 },
+  { id: "ramen", name: "Ramen", category: "meals", calories: 190, protein: 8, carbs: 26, fat: 6, fiber: 1, sugar: 2 },
+  { id: "grilled-cheese", name: "Grilled Cheese", category: "meals", calories: 291, protein: 12, carbs: 28, fat: 15, fiber: 1, sugar: 4 },
+];
+
+/** Food lookup map for fast access by id */
+export const foodById = new Map(foods.map((f) => [f.id, f]));
+
+/** Common serving sizes by food id */
+export const servingSizes: Record<string, ServingSize[]> = {
+  // Fruits
+  apple: [{ label: "1 medium", grams: 182 }, { label: "1 small", grams: 150 }],
+  banana: [{ label: "1 medium", grams: 118 }, { label: "1 large", grams: 136 }],
+  orange: [{ label: "1 medium", grams: 131 }],
+  strawberry: [{ label: "1 cup", grams: 152 }, { label: "1 berry", grams: 12 }],
+  blueberry: [{ label: "1 cup", grams: 148 }],
+  grapes: [{ label: "1 cup", grams: 151 }],
+  watermelon: [{ label: "1 slice", grams: 286 }, { label: "1 cup diced", grams: 152 }],
+  mango: [{ label: "1 whole", grams: 207 }, { label: "1 cup sliced", grams: 165 }],
+  avocado: [{ label: "1 whole", grams: 200 }, { label: "1/2 avocado", grams: 100 }],
+  pineapple: [{ label: "1 cup chunks", grams: 165 }],
+  peach: [{ label: "1 medium", grams: 150 }],
+  pear: [{ label: "1 medium", grams: 178 }],
+  cherry: [{ label: "1 cup", grams: 138 }],
+
+  // Vegetables
+  broccoli: [{ label: "1 cup chopped", grams: 91 }],
+  spinach: [{ label: "1 cup raw", grams: 30 }, { label: "1 cup cooked", grams: 180 }],
+  carrot: [{ label: "1 medium", grams: 61 }, { label: "1 cup chopped", grams: 128 }],
+  tomato: [{ label: "1 medium", grams: 123 }, { label: "1 cup chopped", grams: 180 }],
+  potato: [{ label: "1 medium", grams: 150 }, { label: "1 large", grams: 300 }],
+  "sweet-potato": [{ label: "1 medium", grams: 130 }],
+  onion: [{ label: "1 medium", grams: 110 }],
+  cucumber: [{ label: "1 cup sliced", grams: 119 }, { label: "1 whole", grams: 301 }],
+  "bell-pepper": [{ label: "1 medium", grams: 119 }, { label: "1 cup chopped", grams: 149 }],
+  lettuce: [{ label: "1 cup shredded", grams: 47 }],
+  mushroom: [{ label: "1 cup sliced", grams: 70 }],
+  zucchini: [{ label: "1 medium", grams: 196 }, { label: "1 cup sliced", grams: 113 }],
+  cauliflower: [{ label: "1 cup", grams: 107 }],
+  "green-beans": [{ label: "1 cup", grams: 125 }],
+  corn: [{ label: "1 ear", grams: 90 }, { label: "1 cup kernels", grams: 154 }],
+
+  // Protein
+  "chicken-breast": [{ label: "1 breast (6oz)", grams: 170 }, { label: "3 oz", grams: 85 }],
+  salmon: [{ label: "1 fillet (6oz)", grams: 170 }, { label: "3 oz", grams: 85 }],
+  "beef-steak": [{ label: "6 oz", grams: 170 }, { label: "3 oz", grams: 85 }],
+  eggs: [{ label: "1 large", grams: 50 }, { label: "2 eggs", grams: 100 }],
+  tofu: [{ label: "1/2 block", grams: 126 }, { label: "1 cup cubed", grams: 252 }],
+  tuna: [{ label: "1 can (5oz)", grams: 142 }],
+  shrimp: [{ label: "3 oz", grams: 85 }, { label: "6 large", grams: 84 }],
+  turkey: [{ label: "3 oz", grams: 85 }],
+  "pork-chop": [{ label: "1 chop", grams: 135 }],
+  "greek-yogurt": [{ label: "1 cup", grams: 245 }, { label: "1 container (5.3oz)", grams: 150 }],
+  bacon: [{ label: "1 slice", grams: 8 }, { label: "3 slices", grams: 24 }],
+  lamb: [{ label: "3 oz", grams: 85 }],
+  tempeh: [{ label: "1 cup", grams: 166 }, { label: "3 oz", grams: 85 }],
+
+  // Grains
+  "white-rice": [{ label: "1 cup cooked", grams: 186 }],
+  "brown-rice": [{ label: "1 cup cooked", grams: 195 }],
+  oatmeal: [{ label: "1 cup cooked", grams: 234 }],
+  "bread-white": [{ label: "1 slice", grams: 30 }],
+  "bread-whole-wheat": [{ label: "1 slice", grams: 33 }],
+  pasta: [{ label: "1 cup cooked", grams: 140 }],
+  quinoa: [{ label: "1 cup cooked", grams: 185 }],
+  tortilla: [{ label: "1 tortilla (10\")", grams: 72 }, { label: "1 small (6\")", grams: 36 }],
+  bagel: [{ label: "1 bagel", grams: 105 }],
+  cereal: [{ label: "1 cup", grams: 30 }],
+  crackers: [{ label: "5 crackers", grams: 16 }],
+
+  // Dairy
+  "whole-milk": [{ label: "1 cup", grams: 244 }, { label: "1 glass (8oz)", grams: 244 }],
+  "skim-milk": [{ label: "1 cup", grams: 245 }],
+  "cheddar-cheese": [{ label: "1 slice", grams: 28 }, { label: "1 oz", grams: 28 }],
+  mozzarella: [{ label: "1 slice", grams: 28 }, { label: "1 oz", grams: 28 }],
+  "cottage-cheese": [{ label: "1 cup", grams: 226 }, { label: "1/2 cup", grams: 113 }],
+  butter: [{ label: "1 tbsp", grams: 14 }, { label: "1 pat", grams: 5 }],
+  "cream-cheese": [{ label: "1 tbsp", grams: 14.5 }, { label: "1 oz", grams: 28 }],
+  yogurt: [{ label: "1 cup", grams: 245 }],
+  "ice-cream": [{ label: "1/2 cup", grams: 66 }, { label: "1 scoop", grams: 72 }],
+
+  // Snacks
+  almonds: [{ label: "1 oz (23 almonds)", grams: 28 }, { label: "1/4 cup", grams: 36 }],
+  "peanut-butter": [{ label: "1 tbsp", grams: 16 }, { label: "2 tbsp", grams: 32 }],
+  "dark-chocolate": [{ label: "1 square", grams: 10 }, { label: "1 oz", grams: 28 }],
+  "granola-bar": [{ label: "1 bar", grams: 42 }],
+  chips: [{ label: "1 oz (about 15 chips)", grams: 28 }, { label: "1 small bag", grams: 43 }],
+  popcorn: [{ label: "1 cup popped", grams: 8 }, { label: "3 cups popped", grams: 24 }],
+  "trail-mix": [{ label: "1/4 cup", grams: 38 }, { label: "1 oz", grams: 28 }],
+  hummus: [{ label: "2 tbsp", grams: 30 }, { label: "1/4 cup", grams: 62 }],
+  pretzels: [{ label: "1 oz", grams: 28 }],
+  "rice-cake": [{ label: "1 cake", grams: 9 }],
+
+  // Beverages
+  "coffee-black": [{ label: "1 cup (8oz)", grams: 237 }],
+  "orange-juice": [{ label: "1 cup (8oz)", grams: 248 }, { label: "1 glass", grams: 248 }],
+  cola: [{ label: "1 can (12oz)", grams: 355 }, { label: "1 cup", grams: 240 }],
+  beer: [{ label: "1 bottle (12oz)", grams: 355 }, { label: "1 pint", grams: 473 }],
+  wine: [{ label: "1 glass (5oz)", grams: 148 }],
+  "protein-shake": [{ label: "1 scoop + water", grams: 350 }],
+  smoothie: [{ label: "1 cup", grams: 245 }, { label: "16oz", grams: 473 }],
+  "green-tea": [{ label: "1 cup", grams: 237 }],
+  latte: [{ label: "12 oz", grams: 340 }, { label: "16 oz", grams: 473 }],
+
+  // Meals
+  "pizza-slice": [{ label: "1 slice", grams: 107 }, { label: "2 slices", grams: 214 }],
+  burger: [{ label: "1 burger", grams: 220 }],
+  "chicken-sandwich": [{ label: "1 sandwich", grams: 200 }],
+  "caesar-salad": [{ label: "1 bowl", grams: 267 }],
+  "sushi-roll": [{ label: "1 roll (6 pcs)", grams: 180 }, { label: "1 piece", grams: 30 }],
+  burrito: [{ label: "1 burrito", grams: 450 }],
+  "pad-thai": [{ label: "1 serving", grams: 300 }],
+  "fried-rice": [{ label: "1 cup", grams: 200 }, { label: "1 plate", grams: 350 }],
+  taco: [{ label: "1 taco", grams: 170 }],
+  ramen: [{ label: "1 bowl", grams: 500 }],
+  "grilled-cheese": [{ label: "1 sandwich", grams: 120 }],
+};
+
+/** Category display metadata */
+export const categories: { id: string; name: string; emoji: string }[] = [
+  { id: "fruits", name: "Fruits", emoji: "🍎" },
+  { id: "vegetables", name: "Vegetables", emoji: "🥦" },
+  { id: "protein", name: "Protein", emoji: "🍗" },
+  { id: "grains", name: "Grains", emoji: "🌾" },
+  { id: "dairy", name: "Dairy", emoji: "🧀" },
+  { id: "snacks", name: "Snacks", emoji: "🥜" },
+  { id: "beverages", name: "Beverages", emoji: "☕" },
+  { id: "meals", name: "Meals", emoji: "🍝" },
+];
