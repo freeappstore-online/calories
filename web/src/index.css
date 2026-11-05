@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Fonts loaded via <link> in index.html (Manrope from Google Fonts) */
+/* Fonts loaded via <link> in index.html (Manrope + Fraunces from Google Fonts) */
 
 :root {
   /* Neutrals */
@@ -61,4 +61,10 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--muted);
+}
+
+h1,
+h2,
+h3 {
+  font-family: "Fraunces", Georgia, serif;
 }
