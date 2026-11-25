@@ -2,13 +2,14 @@ import { useState, useMemo, useCallback } from "react";
 import type { DailyLog, DailyGoals, MealType, FoodEntry, SavedMeal } from "../data/types";
 import { sumEntries } from "../lib/nutrition";
 import { formatDate, shiftDate, today } from "../lib/dates";
-import ProgressRing from "./ProgressRing";
+import TargetBars from "./TargetBars";
+import MealSummary from "./MealSummary";
 import FoodSearch from "./FoodSearch";
 import FoodIcon from "./FoodIcon";
 import Modal from "./Modal";
 import MicronutrientCard from "./MicronutrientCard";
 import EditEntryModal from "./EditEntryModal";
-import { defaultMealForTime } from "../lib/entryEdit";
+import { defaultMealForTime, scaleEntry } from "../lib/entryEdit";
 import { imageFor } from "../lib/customFoods";
 
 const MEALS: { id: MealType; label: string; icon: string }[] = [
@@ -106,6 +107,14 @@ export default function DailyLogView({
     setEditingId(null);
   };
 
+  /** Grow/shrink the given entries (one food, or the whole active meal) */
+  const handleScale = (ids: Set<string>, factor: number) => {
+    onLogChange({
+      ...log,
+      entries: log.entries.map((e) => (ids.has(e.id) ? scaleEntry(e, factor) : e)),
+    });
+  };
+
   const handleSaveMealConfirm = () => {
     if (!saveMealName.trim() || mealEntries.length === 0) return;
     onSaveMeal(saveMealName.trim(), mealEntries);
@@ -124,8 +133,6 @@ export default function DailyLogView({
     setCopyMsg(n === 0 ? "Nothing logged yesterday" : `Copied ${n} ${n === 1 ? "entry" : "entries"}`);
     setTimeout(() => setCopyMsg(null), 2500);
   };
-
-  const remaining = goals.calories - totals.calories;
 
   return (
     <div className="space-y-4">
@@ -168,26 +175,8 @@ export default function DailyLogView({
         </button>
       </div>
 
-      {/* Progress rings */}
-      <div
-        className="rounded-xl p-4"
-        style={{ background: "var(--panel)", border: "1px solid var(--line)" }}
-      >
-        <div className="flex justify-around">
-          <ProgressRing value={totals.calories} max={goals.calories} label="cal" size={80} strokeWidth={6} />
-          <ProgressRing value={totals.protein} max={goals.protein} label="protein" unit="g" size={70} strokeWidth={5} color="#3b82f6" />
-          <ProgressRing value={totals.carbs} max={goals.carbs} label="carbs" unit="g" size={70} strokeWidth={5} color="#f59e0b" />
-          <ProgressRing value={totals.fat} max={goals.fat} label="fat" unit="g" size={70} strokeWidth={5} color="#ef4444" />
-        </div>
-        <div className="text-center mt-2">
-          <span
-            className="text-xs font-medium"
-            style={{ color: remaining >= 0 ? "var(--success)" : "var(--error)" }}
-          >
-            {remaining >= 0 ? `${remaining} cal remaining` : `${Math.abs(remaining)} cal over goal`}
-          </span>
-        </div>
-      </div>
+      {/* Daily targets */}
+      <TargetBars totals={totals} goals={goals} />
 
       <MicronutrientCard entries={log.entries} />
 
@@ -215,6 +204,14 @@ export default function DailyLogView({
           </button>
         ))}
       </div>
+
+      {mealEntries.length > 0 && (
+        <MealSummary
+          label={MEALS.find((m) => m.id === activeMeal)!.label}
+          entries={mealEntries}
+          onScale={(f) => handleScale(new Set(mealEntries.map((e) => e.id)), f)}
+        />
+      )}
 
       {/* Entries list */}
       <div
@@ -258,10 +255,32 @@ export default function DailyLogView({
                     {" "}&middot; P:{entry.protein}g C:{entry.carbs}g F:{entry.fat}g
                   </div>
                 </div>
-                <div className="flex items-center gap-3 shrink-0">
-                  <span className="text-sm font-bold" style={{ color: "var(--accent)" }}>
+                <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleScale(new Set([entry.id]), 1 / 1.1);
+                    }}
+                    aria-label={`Less ${entry.name}`}
+                    className="w-7 h-7 rounded-lg text-sm font-bold cursor-pointer"
+                    style={{ background: "var(--panel)", border: "1px solid var(--line)", color: "var(--ink)" }}
+                  >
+                    −
+                  </button>
+                  <span className="w-9 text-center text-sm font-bold" style={{ color: "var(--accent)" }}>
                     {entry.calories}
                   </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleScale(new Set([entry.id]), 1.1);
+                    }}
+                    aria-label={`More ${entry.name}`}
+                    className="w-7 h-7 rounded-lg text-sm font-bold cursor-pointer"
+                    style={{ background: "var(--panel)", border: "1px solid var(--line)", color: "var(--ink)" }}
+                  >
+                    +
+                  </button>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();

@@ -7,6 +7,8 @@ interface MacroPieChartProps {
   /** Logged calories total; falls back to the macro-derived estimate */
   calories?: number;
   size?: number;
+  /** Hide the legend (for small inline use) */
+  compact?: boolean;
 }
 
 export default function MacroPieChart({
@@ -15,6 +17,7 @@ export default function MacroPieChart({
   fat,
   calories,
   size = 180,
+  compact = false,
 }: MacroPieChartProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -29,12 +32,13 @@ export default function MacroPieChart({
     canvas.height = size * dpr;
     ctx.scale(dpr, dpr);
 
+    const ring = Math.round(size * 0.155);
     const total = protein + carbs + fat;
     if (total === 0) {
       // Empty state
       ctx.beginPath();
-      ctx.arc(size / 2, size / 2, size / 2 - 20, 0, Math.PI * 2);
-      ctx.lineWidth = 24;
+      ctx.arc(size / 2, size / 2, size / 2 - 4 - ring / 2, 0, Math.PI * 2);
+      ctx.lineWidth = ring;
       const style = getComputedStyle(document.documentElement);
       ctx.strokeStyle = style.getPropertyValue("--line").trim() || "#e5e7eb";
       ctx.stroke();
@@ -50,7 +54,7 @@ export default function MacroPieChart({
     const cx = size / 2;
     const cy = size / 2;
     const outerR = size / 2 - 4;
-    const innerR = outerR - 28;
+    const innerR = outerR - ring;
     let startAngle = -Math.PI / 2;
 
     for (const slice of slices) {
@@ -80,7 +84,7 @@ export default function MacroPieChart({
         <div
           className="absolute inset-0 flex flex-col items-center justify-center"
         >
-          <span className="text-lg font-bold" style={{ color: "var(--ink)" }}>
+          <span className={compact ? "text-sm font-bold" : "text-lg font-bold"} style={{ color: "var(--ink)" }}>
             {Math.round(calories ?? protein * 4 + carbs * 4 + fat * 9)}
           </span>
           <span className="text-[10px]" style={{ color: "var(--muted)" }}>
@@ -88,7 +92,7 @@ export default function MacroPieChart({
           </span>
         </div>
       </div>
-      <div className="flex gap-4 text-xs">
+      {!compact && <div className="flex gap-4 text-xs">
         <div className="flex items-center gap-1">
           <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />
           <span style={{ color: "var(--muted)" }}>P {pPct}%</span>
@@ -101,7 +105,7 @@ export default function MacroPieChart({
           <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />
           <span style={{ color: "var(--muted)" }}>F {fPct}%</span>
         </div>
-      </div>
+      </div>}
     </div>
   );
 }

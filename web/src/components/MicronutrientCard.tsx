@@ -5,17 +5,19 @@ import { formatMicro, sumMicros } from "../lib/nutrition";
 
 const OPEN_KEY = "calories_ui_micros_open";
 
-function readOpen(): boolean {
+function readOpen(key: string): boolean {
   try {
-    return localStorage.getItem(OPEN_KEY) === "1";
+    return localStorage.getItem(key) === "1";
   } catch {
     return false;
   }
 }
 
 /** Collapsible daily micronutrient totals with % Daily Value */
-export default function MicronutrientCard({ entries }: { entries: FoodEntry[] }) {
-  const [open, setOpen] = useState(readOpen);
+export default function MicronutrientCard({ entries, title = "Micronutrients" }: { entries: FoodEntry[]; title?: string }) {
+  // The day card and the meal card remember their open state separately
+  const key = title === "Micronutrients" ? OPEN_KEY : `${OPEN_KEY}_meal`;
+  const [open, setOpen] = useState(() => readOpen(key));
   const totals = useMemo(() => sumMicros(entries), [entries]);
   // Entries with no data for any nutrient (quick add, deleted foods)
   const noData = Math.min(...MICRO_DEFS.map((m) => totals[m.key].unknownEntries));
@@ -24,7 +26,7 @@ export default function MicronutrientCard({ entries }: { entries: FoodEntry[] })
     const next = !open;
     setOpen(next);
     try {
-      localStorage.setItem(OPEN_KEY, next ? "1" : "0");
+      localStorage.setItem(key, next ? "1" : "0");
     } catch {
       // storage unavailable: the card still works, it just won't remember
     }
@@ -38,7 +40,7 @@ export default function MicronutrientCard({ entries }: { entries: FoodEntry[] })
         className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold cursor-pointer"
         style={{ background: "transparent", border: "none", color: "var(--ink)" }}
       >
-        <span>Micronutrients</span>
+        <span>{title}</span>
         <span className="text-xs" style={{ color: "var(--muted)" }}>{open ? "Hide" : "Show"}</span>
       </button>
       {open && (
