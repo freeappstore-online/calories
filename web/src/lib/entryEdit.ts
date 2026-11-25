@@ -62,3 +62,10 @@ export function scaleEntry(entry: FoodEntry, factor: number): FoodEntry {
     micros: scaleMicros(food, grams),
   };
 }
+
+/** Change a food entry's weight by deltaGrams (never below 1 g); quick-add entries are unchanged */
+export function stepEntry(entry: FoodEntry, deltaGrams: number): FoodEntry {
+  if (entry.portionGrams <= 0) return entry;
+  const grams = Math.max(1, Math.round(entry.portionGrams) + deltaGrams);
+  return scaleEntry(entry, grams / entry.portionGrams);
+}

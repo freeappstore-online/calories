@@ -9,7 +9,8 @@ import FoodIcon from "./FoodIcon";
 import Modal from "./Modal";
 import MicronutrientCard from "./MicronutrientCard";
 import EditEntryModal from "./EditEntryModal";
-import { defaultMealForTime, scaleEntry } from "../lib/entryEdit";
+import { defaultMealForTime, scaleEntry, stepEntry } from "../lib/entryEdit";
+import { getSettings } from "../lib/settings";
 import { imageFor } from "../lib/customFoods";
 
 const MEALS: { id: MealType; label: string }[] = [
@@ -107,12 +108,24 @@ export default function DailyLogView({
     setEditingId(null);
   };
 
-  /** Grow/shrink the given entries (one food, or the whole active meal) */
-  const handleScale = (ids: Set<string>, factor: number) => {
-    onLogChange({
-      ...log,
-      entries: log.entries.map((e) => (ids.has(e.id) ? scaleEntry(e, factor) : e)),
-    });
+  const steps = getSettings();
+
+  const replaceEntries = (update: (e: FoodEntry) => FoodEntry) => {
+    onLogChange({ ...log, entries: log.entries.map(update) });
+  };
+
+  /** Change one food by the food step (grams) */
+  const handleStepFood = (id: string, sign: 1 | -1) => {
+    replaceEntries((e) => (e.id === id ? stepEntry(e, sign * steps.foodStepGrams) : e));
+  };
+
+  /** Change the meal's total weight by the meal step, spread proportionally over its foods */
+  const handleStepMeal = (sign: 1 | -1) => {
+    const weight = mealEntries.reduce((sum, e) => sum + e.portionGrams, 0);
+    const target = weight + sign * steps.mealStepGrams;
+    if (weight <= 0 || target < 1) return;
+    const ids = new Set(mealEntries.map((e) => e.id));
+    replaceEntries((e) => (ids.has(e.id) ? scaleEntry(e, target / weight) : e));
   };
 
   const handleSaveMealConfirm = () => {
@@ -207,7 +220,8 @@ export default function DailyLogView({
         <MealSummary
           label={MEALS.find((m) => m.id === activeMeal)!.label}
           entries={mealEntries}
-          onScale={(f) => handleScale(new Set(mealEntries.map((e) => e.id)), f)}
+          stepGrams={steps.mealStepGrams}
+          onStep={handleStepMeal}
         />
       )}
 
@@ -249,17 +263,18 @@ export default function DailyLogView({
                     {entry.name}
                   </button>
                   <div className="text-[11px]" style={{ color: "var(--muted)" }}>
-                    {entry.portionGrams > 0 ? `${entry.portionGrams}g` : "Quick add"}
-                    {" "}&middot; P:{entry.protein}g C:{entry.carbs}g F:{entry.fat}g
+                    {entry.portionGrams > 0 ? `${Math.round(entry.portionGrams)}g` : "Quick add"}
+                    {" "}&middot; P:{Math.round(entry.protein)}g C:{Math.round(entry.carbs)}g F:{Math.round(entry.fat)}g
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0 ml-2">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleScale(new Set([entry.id]), 1 / 1.1);
+                      handleStepFood(entry.id, -1);
                     }}
-                    aria-label={`Less ${entry.name}`}
+                    aria-label={`${steps.foodStepGrams} g less ${entry.name}`}
+                    hidden={entry.portionGrams <= 0}
                     className="w-7 h-7 rounded-lg text-sm font-bold cursor-pointer"
                     style={{ background: "var(--panel)", border: "1px solid var(--line)", color: "var(--ink)" }}
                   >
@@ -271,9 +286,10 @@ export default function DailyLogView({
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleScale(new Set([entry.id]), 1.1);
+                      handleStepFood(entry.id, 1);
                     }}
-                    aria-label={`More ${entry.name}`}
+                    aria-label={`${steps.foodStepGrams} g more ${entry.name}`}
+                    hidden={entry.portionGrams <= 0}
                     className="w-7 h-7 rounded-lg text-sm font-bold cursor-pointer"
                     style={{ background: "var(--panel)", border: "1px solid var(--line)", color: "var(--ink)" }}
                   >

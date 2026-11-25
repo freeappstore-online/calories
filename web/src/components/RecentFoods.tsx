@@ -50,7 +50,7 @@ export default function RecentFoods({ meal, favorites, onAdd }: RecentFoodsProps
                 <button
                   key={t.foodId}
                   onClick={() => onAdd(templateToEntry(t, meal))}
-                  aria-label={`Add ${t.name}, ${t.portionGrams} g`}
+                  aria-label={`Add ${t.name}, ${Math.round(t.portionGrams)} g`}
                   className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left cursor-pointer"
                   style={{ background: "var(--panel)", border: "1px solid var(--line)", color: "var(--ink)" }}
                 >
@@ -58,7 +58,7 @@ export default function RecentFoods({ meal, favorites, onAdd }: RecentFoodsProps
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium truncate">{t.name}</div>
                     <div className="text-[11px]" style={{ color: "var(--muted)" }}>
-                      {t.portionGrams} g &middot; {t.calories} cal
+                      {Math.round(t.portionGrams)} g &middot; {t.calories} cal
                     </div>
                   </div>
                   <svg

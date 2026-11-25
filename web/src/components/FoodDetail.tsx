@@ -73,7 +73,7 @@ export default function FoodDetail({ food, meal, onMealChange, onAdd, onDeleted 
                   border: `1px solid ${servingIdx === i ? "var(--accent)" : "var(--line)"}`,
                 }}
               >
-                {s.label} ({s.grams}g)
+                {s.label} ({Math.round(s.grams)}g)
               </button>
             ))}
           </div>
@@ -115,31 +115,31 @@ export default function FoodDetail({ food, meal, onMealChange, onAdd, onDeleted 
         </div>
         <div>
           <div className="text-sm font-semibold" style={{ color: "#3b82f6" }}>
-            {preview.protein}g
+            {Math.round(preview.protein)}g
           </div>
           <div className="text-[10px]" style={{ color: "var(--muted)" }}>protein</div>
         </div>
         <div>
           <div className="text-sm font-semibold" style={{ color: "#f59e0b" }}>
-            {preview.carbs}g
+            {Math.round(preview.carbs)}g
           </div>
           <div className="text-[10px]" style={{ color: "var(--muted)" }}>carbs</div>
         </div>
         <div>
           <div className="text-sm font-semibold" style={{ color: "#ef4444" }}>
-            {preview.fat}g
+            {Math.round(preview.fat)}g
           </div>
           <div className="text-[10px]" style={{ color: "var(--muted)" }}>fat</div>
         </div>
         <div>
           <div className="text-sm font-semibold" style={{ color: "var(--ink)" }}>
-            {preview.fiber}g
+            {Math.round(preview.fiber)}g
           </div>
           <div className="text-[10px]" style={{ color: "var(--muted)" }}>fiber</div>
         </div>
         <div>
           <div className="text-sm font-semibold" style={{ color: "var(--ink)" }}>
-            {preview.sugar}g
+            {Math.round(preview.sugar)}g
           </div>
           <div className="text-[10px]" style={{ color: "var(--muted)" }}>sugar</div>
         </div>
@@ -156,7 +156,7 @@ export default function FoodDetail({ food, meal, onMealChange, onAdd, onDeleted 
         </div>
         {MICRO_DEFS.map((m) => {
           const per100 = food[m.key];
-          const amount = per100 === null ? null : formatMicro(per100 * factor);
+          const amount = per100 === null ? null : per100 * factor;
           return (
             <div
               key={m.key}
@@ -165,7 +165,7 @@ export default function FoodDetail({ food, meal, onMealChange, onAdd, onDeleted 
             >
               <span>{m.label}</span>
               <span>
-                {amount === null ? "—" : `${amount}${m.unit}`}
+                {amount === null ? "—" : `${formatMicro(amount)}${m.unit}`}
                 {amount !== null && (
                   <span className="inline-block w-10 text-right" style={{ color: "var(--muted)" }}>
                     {Math.round((amount / m.dv) * 100)}%

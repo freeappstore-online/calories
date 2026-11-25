@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { UserProfile, ActivityLevel, WeightGoal, Sex } from "../data/types";
 import BackupSection from "./BackupSection";
+import PortionStepsSettings from "./PortionStepsSettings";
 import { calculateBMI, bmiCategory, calculateTDEE, suggestCalories } from "../lib/nutrition";
 
 interface ProfileViewProps {
@@ -309,6 +310,7 @@ export default function ProfileView({ profile, onSave }: ProfileViewProps) {
         Save profile
       </button>
 
+      <PortionStepsSettings />
       <BackupSection />
     </div>
   );

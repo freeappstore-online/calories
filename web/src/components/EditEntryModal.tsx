@@ -93,7 +93,7 @@ export default function EditEntryModal({ entry, onSave, onClose }: EditEntryModa
                       border: `1px solid ${grams === s.grams ? "var(--accent)" : "var(--line)"}`,
                     }}
                   >
-                    {s.label} ({s.grams}g)
+                    {s.label} ({Math.round(s.grams)}g)
                   </button>
                 ))}
               </div>
@@ -112,9 +112,9 @@ export default function EditEntryModal({ entry, onSave, onClose }: EditEntryModa
             <div className="rounded-xl p-3 grid grid-cols-4 gap-2 text-center" style={{ background: "var(--panel)" }}>
               {[
                 ["cal", gramsValid ? String(preview.calories) : "–", "var(--accent)"],
-                ["protein", gramsValid ? `${preview.protein}g` : "–", "#3b82f6"],
-                ["carbs", gramsValid ? `${preview.carbs}g` : "–", "#f59e0b"],
-                ["fat", gramsValid ? `${preview.fat}g` : "–", "#ef4444"],
+                ["protein", gramsValid ? `${Math.round(preview.protein)}g` : "–", "#3b82f6"],
+                ["carbs", gramsValid ? `${Math.round(preview.carbs)}g` : "–", "#f59e0b"],
+                ["fat", gramsValid ? `${Math.round(preview.fat)}g` : "–", "#ef4444"],
               ].map(([label, val, color]) => (
                 <div key={label}>
                   <div className="text-sm font-bold" style={{ color }}>{val}</div>

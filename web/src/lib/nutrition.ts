@@ -29,9 +29,9 @@ export function scaleMicros(food: FoodItem, portionGrams: number): Record<MicroK
   return out;
 }
 
-/** Amount for display: 0 dp from 10, 1 dp from 1, else 2 dp */
-export function formatMicro(raw: number): number {
-  return raw >= 10 ? Math.round(raw) : raw >= 1 ? Math.round(raw * 10) / 10 : Math.round(raw * 100) / 100;
+/** Amount for display: whole numbers only, "<1" for a non-zero amount below 1 */
+export function formatMicro(raw: number): string {
+  return raw > 0 && raw < 1 ? "<1" : String(Math.round(raw));
 }
 
 export interface MicroTotal {
