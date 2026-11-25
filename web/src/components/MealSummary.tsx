@@ -14,6 +14,8 @@ interface MealSummaryProps {
 /** Totals for the active meal plus whole-meal −/+ scaling */
 export default function MealSummary({ label, entries, onScale }: MealSummaryProps) {
   const t = useMemo(() => sumEntries(entries), [entries]);
+  const grams = Math.round(entries.reduce((sum, e) => sum + e.portionGrams, 0));
+  const quickAdds = entries.filter((e) => e.portionGrams <= 0).length;
   const stats = [
     { label: "protein", value: t.protein, color: "#3b82f6" },
     { label: "carbs", value: t.carbs, color: "#f59e0b" },
@@ -31,9 +33,19 @@ export default function MealSummary({ label, entries, onScale }: MealSummaryProp
         <MacroPieChart protein={t.protein} carbs={t.carbs} fat={t.fat} calories={t.calories} size={88} compact />
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs font-semibold" style={{ color: "var(--ink)" }}>
-              {label} total
-            </span>
+            <div>
+              <div className="text-xs font-semibold" style={{ color: "var(--ink)" }}>
+                {label} total
+              </div>
+              <div className="text-sm font-bold" style={{ color: "var(--ink)" }}>
+                {grams} g
+                {quickAdds > 0 && (
+                  <span className="text-[10px] font-normal" style={{ color: "var(--muted)" }}>
+                    {" "}+ {quickAdds} quick add
+                  </span>
+                )}
+              </div>
+            </div>
             <div className="flex items-center gap-1" role="group" aria-label={`Resize ${label}`}>
               <button
                 onClick={() => onScale(1 / 1.1)}
