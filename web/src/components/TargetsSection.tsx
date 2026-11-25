@@ -122,7 +122,7 @@ export default function TargetsSection({ profile, overrides, onChange }: Targets
       style={{ background: "var(--panel)", border: "1px solid var(--line)" }}
     >
       <div>
-        <h3 className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Daily targets</h3>
+        <h2 className="text-sm font-bold" style={{ color: "var(--ink)" }}>Daily targets</h2>
         <p className="text-[11px]" style={{ color: "var(--muted)" }}>
           {profile
             ? "Recommended from your saved profile. Type your own value to override it."
