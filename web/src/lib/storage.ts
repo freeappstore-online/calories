@@ -1,4 +1,4 @@
-import type { DailyLog, DailyGoals, SavedMeal, UserProfile } from "../data/types";
+import type { DailyLog, SavedMeal, TargetOverrides, Targets, UserProfile } from "../data/types";
 
 const KEYS = {
   logs: "calories_logs",
@@ -33,31 +33,34 @@ export function saveLog(log: DailyLog): void {
   localStorage.setItem(KEYS.logs, JSON.stringify(logs));
 }
 
-// ── Goals ──
+// ── Target overrides ──
 
-const DEFAULT_GOALS: DailyGoals = {
-  calories: 2000,
-  protein: 150,
-  carbs: 250,
-  fat: 65,
-};
+/** The fixed goals before targets followed the profile; saved values equal to these were never a choice */
+const LEGACY_DEFAULTS: Partial<Targets> = { calories: 2000, protein: 150, carbs: 250, fat: 65 };
 
-export function getGoals(): DailyGoals {
+/** Stored under the old goals key; `v: 2` marks the overrides-only format */
+export function getTargetOverrides(): TargetOverrides {
   try {
     const raw = localStorage.getItem(KEYS.goals);
-    if (!raw) return DEFAULT_GOALS;
+    if (!raw) return {};
     const parsed: unknown = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return DEFAULT_GOALS;
-    const goals = { ...DEFAULT_GOALS, ...(parsed as Partial<DailyGoals>) };
-    if (!(goals.calories >= 1)) goals.calories = DEFAULT_GOALS.calories;
-    return goals;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    const { v, ...values } = parsed as Record<string, unknown>;
+    const out: Record<string, number> = {};
+    for (const [k, n] of Object.entries(values)) {
+      if (typeof n !== "number" || !(n > 0)) continue;
+      if (v !== 2 && LEGACY_DEFAULTS[k as keyof Targets] === n) continue;
+      out[k] = n;
+    }
+    if (v !== 2) saveTargetOverrides(out);
+    return out;
   } catch {
-    return DEFAULT_GOALS;
+    return {};
   }
 }
 
-export function saveGoals(goals: DailyGoals): void {
-  localStorage.setItem(KEYS.goals, JSON.stringify(goals));
+export function saveTargetOverrides(overrides: TargetOverrides): void {
+  localStorage.setItem(KEYS.goals, JSON.stringify({ ...overrides, v: 2 }));
 }
 
 // ── Saved Meals ──

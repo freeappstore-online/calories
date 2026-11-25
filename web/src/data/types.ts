@@ -46,7 +46,7 @@ export type MicroKey =
   | "vitaminD"
   | "vitaminB12";
 
-/** Display order, unit and FDA Daily Value; limit nutrients are to be kept under their DV */
+/** Display order, unit and FDA Daily Value (the default target); limit nutrients are to be kept under their DV */
 export const MICRO_DEFS: { key: MicroKey; label: string; unit: string; dv: number; limit?: boolean }[] = [
   { key: "satFat", label: "Saturated fat", unit: "g", dv: 20, limit: true },
   { key: "cholesterol", label: "Cholesterol", unit: "mg", dv: 300, limit: true },
@@ -113,6 +113,12 @@ export interface DailyGoals {
   carbs: number;
   fat: number;
 }
+
+/** Everything with a daily target: the macros plus fibre, sugar and the micronutrients */
+export type TargetKey = keyof DailyGoals | "fiber" | "sugar" | MicroKey;
+export type Targets = Record<TargetKey, number>;
+/** Only the targets the user set by hand; everything else follows the profile */
+export type TargetOverrides = Partial<Targets>;
 
 export interface SavedMeal {
   id: string;

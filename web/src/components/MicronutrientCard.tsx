@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { MICRO_DEFS } from "../data/types";
 import type { FoodEntry } from "../data/types";
 import { formatMicro, sumMicros } from "../lib/nutrition";
+import { useTargets } from "../lib/targets";
 
 const OPEN_KEY = "calories_ui_micros_open";
 
@@ -18,6 +19,7 @@ export default function MicronutrientCard({ entries, title = "Micronutrients" }:
   // The day card and the meal card remember their open state separately
   const key = title === "Micronutrients" ? OPEN_KEY : `${OPEN_KEY}_meal`;
   const [open, setOpen] = useState(() => readOpen(key));
+  const targets = useTargets();
   const totals = useMemo(() => sumMicros(entries), [entries]);
   // Entries with no data for any nutrient (quick add, deleted foods)
   const noData = Math.min(...MICRO_DEFS.map((m) => totals[m.key].unknownEntries));
@@ -49,7 +51,7 @@ export default function MicronutrientCard({ entries, title = "Micronutrients" }:
             const t = totals[m.key];
             const known = t.coveredEntries > 0 || t.unknownEntries === 0;
             const partial = t.coveredEntries > 0 && t.unknownEntries > 0;
-            const pct = Math.round((t.total / m.dv) * 100);
+            const pct = Math.round((t.total / targets[m.key]) * 100);
             const over = m.limit && pct > 100;
             return (
               <div key={m.key} data-testid={`micro-${m.key}`}>
@@ -77,7 +79,7 @@ export default function MicronutrientCard({ entries, title = "Micronutrients" }:
             );
           })}
           <p className="text-[10px]" style={{ color: "var(--muted)" }}>
-            % of FDA Daily Value. * partial: some entries have no data for that nutrient.
+            % of your daily target (set in Profile). * partial: some entries have no data for that nutrient.
             {noData > 0 && ` ${noData} ${noData === 1 ? "entry has" : "entries have"} no data.`}
           </p>
         </div>

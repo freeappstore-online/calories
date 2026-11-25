@@ -1,24 +1,23 @@
-import { useState, useCallback, useEffect, useRef } from "react";
-import type { DailyLog, DailyGoals, SavedMeal, UserProfile, FoodEntry, MealType } from "./data/types";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import type { DailyLog, SavedMeal, TargetOverrides, UserProfile, FoodEntry, MealType } from "./data/types";
 import { today, shiftDate } from "./lib/dates";
 import {
   getLog,
   saveLog,
-  getGoals,
-  saveGoals,
+  getTargetOverrides,
+  saveTargetOverrides,
   getSavedMeals,
   saveSavedMeals,
   getProfile,
   saveProfile,
 } from "./lib/storage";
-import { suggestCalories } from "./lib/nutrition";
+import { computeTargets, TargetsContext } from "./lib/targets";
 import DailyLogView from "./components/DailyLogView";
-import GoalsView from "./components/GoalsView";
 import DashboardView from "./components/DashboardView";
 import ProfileView from "./components/ProfileView";
 import FoodsView from "./components/FoodsView";
 
-type Page = "log" | "foods" | "dashboard" | "goals" | "profile";
+type Page = "log" | "foods" | "dashboard" | "profile";
 
 const NAV_ITEMS: { id: Page; label: string; icon: React.ReactNode }[] = [
   {
@@ -49,15 +48,6 @@ const NAV_ITEMS: { id: Page; label: string; icon: React.ReactNode }[] = [
     ),
   },
   {
-    id: "goals",
-    label: "Goals",
-    icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
-      </svg>
-    ),
-  },
-  {
     id: "profile",
     label: "Profile",
     icon: (
@@ -72,7 +62,7 @@ export default function App() {
   const [page, setPage] = useState<Page>("log");
   const [date, setDate] = useState(today());
   const [log, setLog] = useState<DailyLog>(() => getLog(today()));
-  const [goals, setGoals] = useState<DailyGoals>(getGoals);
+  const [overrides, setOverrides] = useState<TargetOverrides>(getTargetOverrides);
   const [savedMeals, setSavedMeals] = useState<SavedMeal[]>(getSavedMeals);
   const [profile, setProfile] = useState<UserProfile | null>(getProfile);
 
@@ -114,10 +104,9 @@ export default function App() {
     [log, handleLogChange],
   );
 
-  const handleGoalsSave = useCallback((newGoals: DailyGoals) => {
-    const safe = { ...newGoals, calories: Math.max(1, newGoals.calories || 0) };
-    setGoals(safe);
-    saveGoals(safe);
+  const handleOverridesChange = useCallback((next: TargetOverrides) => {
+    setOverrides(next);
+    saveTargetOverrides(next);
   }, []);
 
   const handleProfileSave = useCallback((newProfile: UserProfile) => {
@@ -173,9 +162,10 @@ export default function App() {
     return copiedEntries.length;
   }, [date, log]);
 
-  const suggestedCal = profile ? suggestCalories(profile) : null;
+  const goals = useMemo(() => computeTargets(profile, overrides), [profile, overrides]);
 
   return (
+    <TargetsContext.Provider value={goals}>
     <div className="flex flex-col h-screen" style={{ background: "var(--paper)" }}>
       <h1 className="sr-only">Calorie Counter</h1>
 
@@ -203,15 +193,13 @@ export default function App() {
           {page === "dashboard" && (
             <DashboardView date={date} goals={goals} />
           )}
-          {page === "goals" && (
-            <GoalsView
-              goals={goals}
-              suggestedCalories={suggestedCal}
-              onSave={handleGoalsSave}
-            />
-          )}
           {page === "profile" && (
-            <ProfileView profile={profile} onSave={handleProfileSave} />
+            <ProfileView
+              profile={profile}
+              onSave={handleProfileSave}
+              overrides={overrides}
+              onOverridesChange={handleOverridesChange}
+            />
           )}
         </div>
       </main>
@@ -242,5 +230,6 @@ export default function App() {
         ))}
       </nav>
     </div>
+    </TargetsContext.Provider>
   );
 }

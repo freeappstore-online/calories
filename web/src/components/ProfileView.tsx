@@ -1,12 +1,15 @@
 import { useState } from "react";
-import type { UserProfile, ActivityLevel, WeightGoal, Sex } from "../data/types";
+import type { UserProfile, ActivityLevel, WeightGoal, Sex, TargetOverrides } from "../data/types";
 import BackupSection from "./BackupSection";
 import PortionStepsSettings from "./PortionStepsSettings";
+import TargetsSection from "./TargetsSection";
 import { calculateBMI, bmiCategory, calculateTDEE, suggestCalories } from "../lib/nutrition";
 
 interface ProfileViewProps {
   profile: UserProfile | null;
   onSave: (profile: UserProfile) => void;
+  overrides: TargetOverrides;
+  onOverridesChange: (overrides: TargetOverrides) => void;
 }
 
 const ACTIVITY_LABELS: Record<ActivityLevel, string> = {
@@ -25,7 +28,7 @@ const GOAL_LABELS: Record<WeightGoal, string> = {
 
 const LB_PER_KG = 2.20462;
 
-export default function ProfileView({ profile, onSave }: ProfileViewProps) {
+export default function ProfileView({ profile, onSave, overrides, onOverridesChange }: ProfileViewProps) {
   // Raw text state so fields can be cleared and retyped; parsed only when computing/saving.
   const initialInches = Math.round((profile?.height ?? 170) / 2.54);
   const [ageText, setAgeText] = useState(String(profile?.age ?? 30));
@@ -311,6 +314,9 @@ export default function ProfileView({ profile, onSave }: ProfileViewProps) {
       </button>
 
       <PortionStepsSettings />
+
+      <TargetsSection profile={profile} overrides={overrides} onChange={onOverridesChange} />
+
       <BackupSection />
     </div>
   );

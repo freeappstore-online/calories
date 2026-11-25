@@ -3,6 +3,7 @@ import { deleteCustomFood, servingsFor } from "../lib/customFoods";
 import { MICRO_DEFS } from "../data/types";
 import type { FoodItem, MealType, FoodEntry } from "../data/types";
 import { formatMicro, scaleMicros, scaleNutrition } from "../lib/nutrition";
+import { useTargets } from "../lib/targets";
 import FoodIcon from "./FoodIcon";
 
 const MEALS: { id: MealType; label: string }[] = [
@@ -24,6 +25,7 @@ interface FoodDetailProps {
 
 /** Serving picker, nutrition facts and add button for one food */
 export default function FoodDetail({ food, meal, onMealChange, onAdd, onDeleted }: FoodDetailProps) {
+  const targets = useTargets();
   const servings = servingsFor(food);
   const [gramsText, setGramsText] = useState(String(servings?.[0]?.grams ?? 100));
   const [servingIdx, setServingIdx] = useState<number | null>(servings?.length ? 0 : null);
@@ -152,7 +154,7 @@ export default function FoodDetail({ food, meal, onMealChange, onAdd, onDeleted 
           style={{ background: "var(--panel)", color: "var(--muted)" }}
         >
           <span>Nutrient</span>
-          <span>Amount &middot; % Daily Value</span>
+          <span>Amount &middot; % of target</span>
         </div>
         {MICRO_DEFS.map((m) => {
           const per100 = food[m.key];
@@ -168,7 +170,7 @@ export default function FoodDetail({ food, meal, onMealChange, onAdd, onDeleted 
                 {amount === null ? "—" : `${formatMicro(amount)}${m.unit}`}
                 {amount !== null && (
                   <span className="inline-block w-10 text-right" style={{ color: "var(--muted)" }}>
-                    {Math.round((amount / m.dv) * 100)}%
+                    {Math.round((amount / targets[m.key]) * 100)}%
                   </span>
                 )}
               </span>
