@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import type { DailyGoals } from "../data/types";
-import { lastNDays } from "../lib/dates";
+import { lastNDays, today, formatDate } from "../lib/dates";
 import { getLog } from "../lib/storage";
 import { sumEntries } from "../lib/nutrition";
 import MacroPieChart from "./MacroPieChart";
@@ -89,12 +89,13 @@ export default function DashboardView({ date, goals }: DashboardViewProps) {
         style={{ background: "var(--panel)", border: "1px solid var(--line)" }}
       >
         <h3 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--muted)" }}>
-          Today's macros
+          {date === today() ? "Today's" : formatDate(date)} macros
         </h3>
         <MacroPieChart
           protein={todayTotals.protein}
           carbs={todayTotals.carbs}
           fat={todayTotals.fat}
+          calories={todayTotals.calories}
         />
       </div>
 

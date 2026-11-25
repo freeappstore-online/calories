@@ -50,7 +50,7 @@ export default function CalorieTrendChart({
 
     if (data.length === 0) return;
 
-    const maxCal = Math.max(goal * 1.3, ...data.map((d) => d.calories));
+    const maxCal = Math.max(1, goal * 1.3, ...data.map((d) => d.calories));
 
     // Draw goal line
     const goalY = padding.top + chartH * (1 - goal / maxCal);

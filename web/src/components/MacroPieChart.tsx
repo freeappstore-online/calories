@@ -4,6 +4,8 @@ interface MacroPieChartProps {
   protein: number;
   carbs: number;
   fat: number;
+  /** Logged calories total; falls back to the macro-derived estimate */
+  calories?: number;
   size?: number;
 }
 
@@ -11,6 +13,7 @@ export default function MacroPieChart({
   protein,
   carbs,
   fat,
+  calories,
   size = 180,
 }: MacroPieChartProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -78,7 +81,7 @@ export default function MacroPieChart({
           className="absolute inset-0 flex flex-col items-center justify-center"
         >
           <span className="text-lg font-bold" style={{ color: "var(--ink)" }}>
-            {Math.round(protein * 4 + carbs * 4 + fat * 9)}
+            {Math.round(calories ?? protein * 4 + carbs * 4 + fat * 9)}
           </span>
           <span className="text-[10px]" style={{ color: "var(--muted)" }}>
             kcal

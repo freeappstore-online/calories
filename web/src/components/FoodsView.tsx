@@ -1,28 +1,36 @@
 import { useState } from "react";
 import type { FoodItem, MealType, FoodEntry } from "../data/types";
+import { today, formatDate } from "../lib/dates";
 import FoodBrowser from "./FoodBrowser";
 import FoodDetail from "./FoodDetail";
 
 interface FoodsViewProps {
+  /** The currently selected log day (YYYY-MM-DD) */
+  date: string;
   /** Adds the entry to the log of the currently selected day */
   onAdd: (entry: FoodEntry) => void;
 }
 
 /** Illustrated library of common foods with full nutrition facts */
-export default function FoodsView({ onAdd }: FoodsViewProps) {
+export default function FoodsView({ date, onAdd }: FoodsViewProps) {
   const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null);
   const [meal, setMeal] = useState<MealType>("snacks");
   const [added, setAdded] = useState<string | null>(null);
 
   const handleAdd = (entry: FoodEntry) => {
     onAdd(entry);
-    setAdded(`${entry.name} added to ${entry.meal}`);
+    setAdded(`${entry.name} added to ${entry.meal}${date === today() ? "" : ` on ${formatDate(date)}`}`);
     setSelectedFood(null);
     setTimeout(() => setAdded(null), 2500);
   };
 
   return (
     <div className="-mx-4">
+      {date !== today() && (
+        <p className="text-xs text-center font-semibold px-4 pb-2" style={{ color: "var(--warning)" }}>
+          Adding to {formatDate(date)}, not today
+        </p>
+      )}
       <FoodBrowser layout="grid" onSelect={setSelectedFood} />
       <p className="text-[10px] text-center px-4 pb-2" style={{ color: "var(--muted)" }}>
         Nutrition: USDA FoodData Central &middot; Illustrations: Microsoft Fluent Emoji

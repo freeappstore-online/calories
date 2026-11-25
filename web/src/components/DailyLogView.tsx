@@ -23,7 +23,8 @@ interface DailyLogViewProps {
   onLogChange: (log: DailyLog) => void;
   onSaveMeal: (name: string, entries: FoodEntry[]) => void;
   onLoadSavedMeal: (meal: SavedMeal, mealType: MealType) => void;
-  onCopyYesterday: () => void;
+  /** Returns how many entries were copied */
+  onCopyYesterday: () => number;
 }
 
 export default function DailyLogView({
@@ -39,6 +40,8 @@ export default function DailyLogView({
 }: DailyLogViewProps) {
   const [activeMeal, setActiveMeal] = useState<MealType>("breakfast");
   const [showAddFood, setShowAddFood] = useState(false);
+  const [confirmCopyDate, setConfirmCopyDate] = useState<string | null>(null);
+  const [copyMsg, setCopyMsg] = useState<string | null>(null);
   const [saveMealName, setSaveMealName] = useState("");
   const [showSaveMeal, setShowSaveMeal] = useState(false);
   const [showLoadMeal, setShowLoadMeal] = useState(false);
@@ -91,6 +94,18 @@ export default function DailyLogView({
     setShowSaveMeal(false);
   };
 
+  const confirmCopy = confirmCopyDate === date;
+  const handleCopy = () => {
+    if (log.entries.length > 0 && !confirmCopy) {
+      setConfirmCopyDate(date);
+      return;
+    }
+    setConfirmCopyDate(null);
+    const n = onCopyYesterday();
+    setCopyMsg(n === 0 ? "Nothing logged yesterday" : `Copied ${n} ${n === 1 ? "entry" : "entries"}`);
+    setTimeout(() => setCopyMsg(null), 2500);
+  };
+
   const remaining = goals.calories - totals.calories;
 
   return (
@@ -113,7 +128,9 @@ export default function DailyLogView({
           <input
             type="date"
             value={date}
-            onChange={(e) => onDateChange(e.target.value)}
+            onChange={(e) => {
+              if (e.target.value) onDateChange(e.target.value);
+            }}
             className="text-xs mt-0.5 bg-transparent border-none outline-none cursor-pointer"
             style={{ color: "var(--muted)" }}
           />
@@ -260,11 +277,13 @@ export default function DailyLogView({
       {/* Quick actions */}
       <div className="flex gap-2">
         <button
-          onClick={onCopyYesterday}
+          onClick={handleCopy}
           className="flex-1 py-2 rounded-lg text-xs font-medium cursor-pointer"
           style={{ background: "var(--panel)", color: "var(--muted)", border: "1px solid var(--line)" }}
         >
-          Copy yesterday
+          {confirmCopy
+            ? "This day already has entries. Tap again to add yesterday's"
+            : (copyMsg ?? "Copy yesterday")}
         </button>
       </div>
 

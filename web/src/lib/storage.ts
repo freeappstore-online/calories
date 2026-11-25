@@ -13,7 +13,9 @@ export function getAllLogs(): Record<string, DailyLog> {
   try {
     const raw = localStorage.getItem(KEYS.logs);
     if (!raw) return {};
-    return JSON.parse(raw) as Record<string, DailyLog>;
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    return parsed as Record<string, DailyLog>;
   } catch {
     return {};
   }
@@ -21,7 +23,8 @@ export function getAllLogs(): Record<string, DailyLog> {
 
 export function getLog(date: string): DailyLog {
   const logs = getAllLogs();
-  return logs[date] ?? { date, entries: [] };
+  const log = logs[date];
+  return log && Array.isArray(log.entries) ? log : { date, entries: [] };
 }
 
 export function saveLog(log: DailyLog): void {
@@ -43,7 +46,11 @@ export function getGoals(): DailyGoals {
   try {
     const raw = localStorage.getItem(KEYS.goals);
     if (!raw) return DEFAULT_GOALS;
-    return JSON.parse(raw) as DailyGoals;
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return DEFAULT_GOALS;
+    const goals = { ...DEFAULT_GOALS, ...(parsed as Partial<DailyGoals>) };
+    if (!(goals.calories >= 1)) goals.calories = DEFAULT_GOALS.calories;
+    return goals;
   } catch {
     return DEFAULT_GOALS;
   }
@@ -59,7 +66,8 @@ export function getSavedMeals(): SavedMeal[] {
   try {
     const raw = localStorage.getItem(KEYS.savedMeals);
     if (!raw) return [];
-    return JSON.parse(raw) as SavedMeal[];
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as SavedMeal[]) : [];
   } catch {
     return [];
   }
@@ -75,7 +83,9 @@ export function getProfile(): UserProfile | null {
   try {
     const raw = localStorage.getItem(KEYS.profile);
     if (!raw) return null;
-    return JSON.parse(raw) as UserProfile;
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    return parsed as UserProfile;
   } catch {
     return null;
   }

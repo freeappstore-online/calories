@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type { DailyLog, DailyGoals, SavedMeal, UserProfile, FoodEntry, MealType } from "./data/types";
 import { today, shiftDate } from "./lib/dates";
 import {
@@ -76,6 +76,24 @@ export default function App() {
   const [savedMeals, setSavedMeals] = useState<SavedMeal[]>(getSavedMeals);
   const [profile, setProfile] = useState<UserProfile | null>(getProfile);
 
+  // Roll the selected day over after midnight if it was following "today"
+  const lastToday = useRef(today());
+  useEffect(() => {
+    const rollover = () => {
+      const now = today();
+      if (now === lastToday.current) return;
+      const prev = lastToday.current;
+      lastToday.current = now;
+      setDate((d) => (d === prev ? now : d));
+    };
+    document.addEventListener("visibilitychange", rollover);
+    window.addEventListener("focus", rollover);
+    return () => {
+      document.removeEventListener("visibilitychange", rollover);
+      window.removeEventListener("focus", rollover);
+    };
+  }, []);
+
   // Reload log when date changes
   useEffect(() => {
     setLog(getLog(date));
@@ -97,8 +115,9 @@ export default function App() {
   );
 
   const handleGoalsSave = useCallback((newGoals: DailyGoals) => {
-    setGoals(newGoals);
-    saveGoals(newGoals);
+    const safe = { ...newGoals, calories: Math.max(1, newGoals.calories || 0) };
+    setGoals(safe);
+    saveGoals(safe);
   }, []);
 
   const handleProfileSave = useCallback((newProfile: UserProfile) => {
@@ -137,10 +156,10 @@ export default function App() {
     [log],
   );
 
-  const handleCopyYesterday = useCallback(() => {
+  const handleCopyYesterday = useCallback((): number => {
     const yesterdayDate = shiftDate(date, -1);
     const yesterdayLog = getLog(yesterdayDate);
-    if (yesterdayLog.entries.length === 0) return;
+    if (yesterdayLog.entries.length === 0) return 0;
     const copiedEntries: FoodEntry[] = yesterdayLog.entries.map((e) => ({
       ...e,
       id: crypto.randomUUID(),
@@ -151,6 +170,7 @@ export default function App() {
     };
     setLog(newLog);
     saveLog(newLog);
+    return copiedEntries.length;
   }, [date, log]);
 
   const suggestedCal = profile ? suggestCalories(profile) : null;
@@ -186,7 +206,7 @@ export default function App() {
               onCopyYesterday={handleCopyYesterday}
             />
           )}
-          {page === "foods" && <FoodsView onAdd={handleAddEntry} />}
+          {page === "foods" && <FoodsView date={date} onAdd={handleAddEntry} />}
           {page === "dashboard" && (
             <DashboardView date={date} goals={goals} />
           )}
