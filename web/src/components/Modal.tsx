@@ -25,7 +25,10 @@ export default function Modal({ titleId, onClose, sheet, className, style, child
       (el.querySelector<HTMLElement>("input, button") ?? el).focus();
     }
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeRef.current();
+      if (e.key !== "Escape") return;
+      // With nested dialogs only the innermost (last in document order) closes
+      const open = document.querySelectorAll('[aria-modal="true"]');
+      if (open[open.length - 1] === el) closeRef.current();
     };
     document.addEventListener("keydown", onKey);
     return () => {

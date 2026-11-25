@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { CustomFood } from "../data/types";
 import { CUSTOM_IMAGE, newCustomId, saveCustomFood } from "../lib/customFoods";
 import { MICROS } from "./FoodDetail";
+import Modal from "./Modal";
 
 interface CustomFoodFormProps {
   onSaved: (food: CustomFood) => void;
@@ -35,30 +36,31 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
   const set = (key: string, v: string) => setValues((prev) => ({ ...prev, [key]: v }));
 
   const handleSave = () => {
-    const name = values.name.trim();
+    const get = (key: string) => values[key] ?? "";
+    const name = get("name").trim();
     if (name.length < 1 || name.length > 60) return setError("Name is required (up to 60 characters).");
-    const grams = parseField(values.servingGrams);
+    const grams = parseField(get("servingGrams"));
     if (grams.error || !grams.value || grams.value <= 0) return setError("Serving size must be a number above 0 grams.");
-    const calories = parseField(values.calories);
+    const calories = parseField(get("calories"));
     if (calories.error || calories.value === null) return setError("Calories are required and must be a number, 0 or more.");
 
     const perServing: Record<string, number | null> = { calories: calories.value };
     for (const key of [...MACROS.map((m) => m.key), ...MICROS.map((m) => m.key)]) {
-      const parsed = parseField(values[key] ?? "");
+      const parsed = parseField(get(key));
       if (parsed.error) return setError("Nutrient values must be numbers, 0 or more.");
       perServing[key] = parsed.value;
     }
 
     const per100 = (key: string, dp: number) => {
       const v = perServing[key];
-      return v === null ? null : round((v * 100) / grams.value!, dp);
+      return v === null || v === undefined ? null : round((v * 100) / grams.value!, dp);
     };
     const food: CustomFood = {
       id: newCustomId(),
       name,
       category: "custom",
       image: CUSTOM_IMAGE,
-      servingLabel: values.servingLabel.trim() || "1 serving",
+      servingLabel: get("servingLabel").trim() || "1 serving",
       servingGrams: grams.value,
       calories: per100("calories", 1)!,
       protein: per100("protein", 1) ?? 0,
@@ -98,21 +100,15 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
   );
 
   return (
-    <div
-      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center"
-      style={{ background: "rgba(0,0,0,0.5)" }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+    <Modal
+      titleId="custom-food-title"
+      onClose={onClose}
+      sheet
+      className="w-full max-w-lg max-h-[90vh] flex flex-col rounded-t-2xl sm:rounded-2xl overflow-hidden"
+      style={{ background: "var(--paper)", border: "1px solid var(--line)" }}
     >
-      <div
-        className="w-full max-w-lg max-h-[90vh] flex flex-col rounded-t-2xl sm:rounded-2xl overflow-hidden"
-        style={{ background: "var(--paper)", border: "1px solid var(--line)" }}
-        role="dialog"
-        aria-label="Create food"
-      >
         <div className="flex items-center justify-between px-4 py-3 shrink-0" style={{ borderBottom: "1px solid var(--line)" }}>
-          <h2 className="text-base font-bold" style={{ color: "var(--ink)" }}>Create food</h2>
+          <h2 id="custom-food-title" className="text-base font-bold" style={{ color: "var(--ink)" }}>Create food</h2>
           <button
             onClick={onClose}
             aria-label="Close"
@@ -130,7 +126,7 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
             <span className="text-[11px] font-medium block mb-0.5" style={{ color: "var(--muted)" }}>Name</span>
             <input
               type="text"
-              value={values.name}
+              value={values["name"]}
               maxLength={60}
               autoFocus
               onChange={(e) => set("name", e.target.value)}
@@ -143,7 +139,7 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
               <span className="text-[11px] font-medium block mb-0.5" style={{ color: "var(--muted)" }}>Serving name</span>
               <input
                 type="text"
-                value={values.servingLabel}
+                value={values["servingLabel"]}
                 onChange={(e) => set("servingLabel", e.target.value)}
                 className="w-full px-3 py-2 rounded-lg text-sm outline-none"
                 style={inputStyle}
@@ -176,7 +172,6 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
             Save food
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
