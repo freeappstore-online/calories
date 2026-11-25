@@ -86,7 +86,7 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
 
   const field = (key: string, label: string, placeholder?: string) => (
     <label key={key} className="block">
-      <span className="text-[11px] font-medium block mb-0.5" style={{ color: "var(--muted)" }}>{label}</span>
+      <span className="text-[0.6875rem] font-medium block mb-0.5" style={{ color: "var(--muted)" }}>{label}</span>
       <input
         type="text"
         inputMode="decimal"
@@ -123,7 +123,7 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
 
         <div className="p-4 flex flex-col gap-3 overflow-y-auto">
           <label className="block">
-            <span className="text-[11px] font-medium block mb-0.5" style={{ color: "var(--muted)" }}>Name</span>
+            <span className="text-[0.6875rem] font-medium block mb-0.5" style={{ color: "var(--muted)" }}>Name</span>
             <input
               type="text"
               value={values["name"]}
@@ -136,7 +136,7 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
           </label>
           <div className="grid grid-cols-2 gap-2">
             <label className="block">
-              <span className="text-[11px] font-medium block mb-0.5" style={{ color: "var(--muted)" }}>Serving name</span>
+              <span className="text-[0.6875rem] font-medium block mb-0.5" style={{ color: "var(--muted)" }}>Serving name</span>
               <input
                 type="text"
                 value={values["servingLabel"]}
@@ -147,7 +147,7 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
             </label>
             {field("servingGrams", "Serving size (g)")}
           </div>
-          <p className="text-[11px]" style={{ color: "var(--muted)" }}>Enter the label values for one serving.</p>
+          <p className="text-[0.6875rem]" style={{ color: "var(--muted)" }}>Enter the label values for one serving.</p>
           <div className="grid grid-cols-2 gap-2">
             {field("calories", "Calories (required)")}
             {MACROS.map((m) => field(m.key, m.label))}

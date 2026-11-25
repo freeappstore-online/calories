@@ -113,44 +113,44 @@ export default function FoodDetail({ food, meal, onMealChange, onAdd, onDeleted 
           <div className="text-lg font-bold" style={{ color: "var(--accent)" }}>
             {preview.calories}
           </div>
-          <div className="text-[10px]" style={{ color: "var(--muted)" }}>cal</div>
+          <div className="text-[0.625rem]" style={{ color: "var(--muted)" }}>cal</div>
         </div>
         <div>
           <div className="text-sm font-semibold" style={{ color: "#3b82f6" }}>
             {Math.round(preview.protein)}g
           </div>
-          <div className="text-[10px]" style={{ color: "var(--muted)" }}>protein</div>
+          <div className="text-[0.625rem]" style={{ color: "var(--muted)" }}>protein</div>
         </div>
         <div>
           <div className="text-sm font-semibold" style={{ color: "#f59e0b" }}>
             {Math.round(preview.carbs)}g
           </div>
-          <div className="text-[10px]" style={{ color: "var(--muted)" }}>carbs</div>
+          <div className="text-[0.625rem]" style={{ color: "var(--muted)" }}>carbs</div>
         </div>
         <div>
           <div className="text-sm font-semibold" style={{ color: "#ef4444" }}>
             {Math.round(preview.fat)}g
           </div>
-          <div className="text-[10px]" style={{ color: "var(--muted)" }}>fat</div>
+          <div className="text-[0.625rem]" style={{ color: "var(--muted)" }}>fat</div>
         </div>
         <div>
           <div className="text-sm font-semibold" style={{ color: "var(--ink)" }}>
             {Math.round(preview.fiber)}g
           </div>
-          <div className="text-[10px]" style={{ color: "var(--muted)" }}>fiber</div>
+          <div className="text-[0.625rem]" style={{ color: "var(--muted)" }}>fiber</div>
         </div>
         <div>
           <div className="text-sm font-semibold" style={{ color: "var(--ink)" }}>
             {Math.round(preview.sugar)}g
           </div>
-          <div className="text-[10px]" style={{ color: "var(--muted)" }}>sugar</div>
+          <div className="text-[0.625rem]" style={{ color: "var(--muted)" }}>sugar</div>
         </div>
       </div>
 
       {/* Micronutrients */}
       <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--line)" }}>
         <div
-          className="flex justify-between px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide"
+          className="flex justify-between px-3 py-1.5 text-[0.625rem] font-semibold uppercase tracking-wide"
           style={{ background: "var(--panel)", color: "var(--muted)" }}
         >
           <span>Nutrient</span>
@@ -178,7 +178,7 @@ export default function FoodDetail({ food, meal, onMealChange, onAdd, onDeleted 
           );
         })}
       </div>
-      <p className="text-[10px] text-center" style={{ color: "var(--muted)" }}>
+      <p className="text-[0.625rem] text-center" style={{ color: "var(--muted)" }}>
         {food.fdcId ? `Source: USDA FoodData Central #${food.fdcId}` : "Custom food"}
       </p>
 

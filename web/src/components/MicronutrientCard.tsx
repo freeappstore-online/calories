@@ -78,7 +78,7 @@ export default function MicronutrientCard({ entries, title = "Micronutrients" }:
               </div>
             );
           })}
-          <p className="text-[10px]" style={{ color: "var(--muted)" }}>
+          <p className="text-[0.625rem]" style={{ color: "var(--muted)" }}>
             % of your daily target (set in Profile). * partial: some entries have no data for that nutrient.
             {noData > 0 && ` ${noData} ${noData === 1 ? "entry has" : "entries have"} no data.`}
           </p>

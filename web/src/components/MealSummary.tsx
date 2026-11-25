@@ -49,7 +49,7 @@ export default function MealSummary({ label, entries, stepGrams, onStep }: MealS
             <div className="text-sm font-bold min-w-0" style={{ color: "var(--ink)" }}>
               <span style={{ color: "var(--accent)" }}>{t.calories} kcal</span> &middot; {grams} g
               {quickAdds > 0 && (
-                <span className="block text-[10px] font-normal" style={{ color: "var(--muted)" }}>
+                <span className="block text-[0.625rem] font-normal" style={{ color: "var(--muted)" }}>
                   + {quickAdds} quick add
                 </span>
               )}
@@ -65,7 +65,7 @@ export default function MealSummary({ label, entries, stepGrams, onStep }: MealS
                 <div className="text-sm font-semibold" style={{ color: s.color }}>
                   {Math.round(s.value)}g
                 </div>
-                <div className="text-[10px]" style={{ color: "var(--muted)" }}>{s.label}</div>
+                <div className="text-[0.625rem]" style={{ color: "var(--muted)" }}>{s.label}</div>
               </div>
             ))}
           </div>

@@ -118,7 +118,7 @@ export default function EditEntryModal({ entry, onSave, onClose }: EditEntryModa
               ].map(([label, val, color]) => (
                 <div key={label}>
                   <div className="text-sm font-bold" style={{ color }}>{val}</div>
-                  <div className="text-[10px]" style={{ color: "var(--muted)" }}>{label}</div>
+                  <div className="text-[0.625rem]" style={{ color: "var(--muted)" }}>{label}</div>
                 </div>
               ))}
             </div>

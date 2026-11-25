@@ -152,7 +152,7 @@ export default function DashboardView({ date, goals }: DashboardViewProps) {
             <div className="text-xl font-bold" style={{ color: "var(--accent)" }}>
               {avgCalories}
             </div>
-            <div className="text-[10px]" style={{ color: "var(--muted)" }}>
+            <div className="text-[0.625rem]" style={{ color: "var(--muted)" }}>
               avg calories
             </div>
           </div>
@@ -160,7 +160,7 @@ export default function DashboardView({ date, goals }: DashboardViewProps) {
             <div className="text-xl font-bold" style={{ color: "#3b82f6" }}>
               {avgProtein}g
             </div>
-            <div className="text-[10px]" style={{ color: "var(--muted)" }}>
+            <div className="text-[0.625rem]" style={{ color: "var(--muted)" }}>
               avg protein
             </div>
           </div>
@@ -168,7 +168,7 @@ export default function DashboardView({ date, goals }: DashboardViewProps) {
             <div className="text-xl font-bold" style={{ color: "#f59e0b" }}>
               {avgCarbs}g
             </div>
-            <div className="text-[10px]" style={{ color: "var(--muted)" }}>
+            <div className="text-[0.625rem]" style={{ color: "var(--muted)" }}>
               avg carbs
             </div>
           </div>
@@ -176,7 +176,7 @@ export default function DashboardView({ date, goals }: DashboardViewProps) {
             <div className="text-xl font-bold" style={{ color: "#ef4444" }}>
               {avgFat}g
             </div>
-            <div className="text-[10px]" style={{ color: "var(--muted)" }}>
+            <div className="text-[0.625rem]" style={{ color: "var(--muted)" }}>
               avg fat
             </div>
           </div>

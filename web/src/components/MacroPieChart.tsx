@@ -87,7 +87,7 @@ export default function MacroPieChart({
           <span className={compact ? "text-sm font-bold" : "text-lg font-bold"} style={{ color: "var(--ink)" }}>
             {Math.round(calories ?? protein * 4 + carbs * 4 + fat * 9)}
           </span>
-          <span className="text-[10px]" style={{ color: "var(--muted)" }}>
+          <span className="text-[0.625rem]" style={{ color: "var(--muted)" }}>
             kcal
           </span>
         </div>

@@ -40,7 +40,7 @@ function TargetRow({ label, unit, value, recommended, overridden, onChange, onRe
       <span className="flex-1 min-w-0">
         <span className="block truncate">{label}</span>
         {overridden && (
-          <span className="block text-[10px]" style={{ color: "var(--muted)" }}>
+          <span className="block text-[0.625rem]" style={{ color: "var(--muted)" }}>
             recommended {show(recommended)}
           </span>
         )}
@@ -70,7 +70,7 @@ function TargetRow({ label, unit, value, recommended, overridden, onChange, onRe
         onClick={onReset}
         disabled={!overridden}
         aria-label={`Reset ${label} to recommended`}
-        className="w-14 text-[11px] cursor-pointer text-right disabled:cursor-default"
+        className="w-14 text-[0.6875rem] cursor-pointer text-right disabled:cursor-default"
         style={{
           background: "none",
           border: "none",
@@ -123,7 +123,7 @@ export default function TargetsSection({ profile, overrides, onChange }: Targets
     >
       <div>
         <h2 className="text-sm font-bold" style={{ color: "var(--ink)" }}>Daily targets</h2>
-        <p className="text-[11px]" style={{ color: "var(--muted)" }}>
+        <p className="text-[0.6875rem]" style={{ color: "var(--muted)" }}>
           {profile
             ? "Recommended from your saved profile. Type your own value to override it."
             : "Save your profile to get recommended targets. Defaults are shown until then."}

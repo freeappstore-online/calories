@@ -126,7 +126,7 @@ export default function FoodBrowser({ layout, onSelect, autoFocus, renderTop }: 
             >
               <FoodIcon image={food.image} size={56} />
               <div className="text-xs font-medium leading-tight line-clamp-2">{food.name}</div>
-              <div className="text-[10px]" style={{ color: "var(--muted)" }}>
+              <div className="text-[0.625rem]" style={{ color: "var(--muted)" }}>
                 {food.calories} cal &middot; {Math.round(food.protein)}g P
               </div>
             </button>
@@ -163,7 +163,7 @@ export default function FoodBrowser({ layout, onSelect, autoFocus, renderTop }: 
                 <FoodIcon image={food.image} size={36} />
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium truncate">{food.name}</div>
-                  <div className="text-[11px]" style={{ color: "var(--muted)" }}>
+                  <div className="text-[0.6875rem]" style={{ color: "var(--muted)" }}>
                     {food.calories} cal/100g &middot; P:{Math.round(food.protein)}g C:{Math.round(food.carbs)}g F:{Math.round(food.fat)}g
                   </div>
                 </div>

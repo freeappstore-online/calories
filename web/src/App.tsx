@@ -225,7 +225,7 @@ export default function App() {
             }}
           >
             {item.icon}
-            <span className="text-[10px] font-medium">{item.label}</span>
+            <span className="text-[0.625rem] font-medium">{item.label}</span>
           </button>
         ))}
       </nav>

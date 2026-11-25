@@ -21,28 +21,33 @@
   /* Accent */
   --accent: #2563eb;
 
-  color-scheme: light dark;
+  color-scheme: light;
 
   /* Fonts */
   font-family: "Manrope", system-ui, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --paper: #0f0f0f;
-    --ink: #f5f5f5;
-    --muted: #9ca3af;
-    --line: #2d2d2d;
-    --line-strong: #404040;
-    --panel: #1a1a1a;
-    --glass: rgba(15, 15, 15, 0.8);
-    --dock: #1a1a1a;
+/* Dark mode: the SDK sets data-theme="dark" on <html> when the user picks Dark, or picks
+   System on a dark device (Profile → Appearance). */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #0f0f0f;
+  --ink: #f5f5f5;
+  --muted: #9ca3af;
+  --line: #2d2d2d;
+  --line-strong: #404040;
+  --panel: #1a1a1a;
+  --glass: rgba(15, 15, 15, 0.8);
+  --dock: #1a1a1a;
 
-    --success: #22c55e;
-    --warning: #fbbf24;
-    --error: #ef4444;
-  }
+  --success: #22c55e;
+  --warning: #fbbf24;
+  --error: #ef4444;
 }
+
+/* Text size (Profile → Appearance): scales every rem-based size */
+:root[data-text="lg"] { font-size: 112.5%; }
+:root[data-text="sm"] { font-size: 87.5%; }
 
 body {
   margin: 0;

@@ -35,7 +35,7 @@ export default function FoodsView({ date, onAdd }: FoodsViewProps) {
         </p>
       )}
       <FoodBrowser key={browserKey} layout="grid" onSelect={setSelectedFood} />
-      <p className="text-[10px] text-center px-4 pb-2" style={{ color: "var(--muted)" }}>
+      <p className="text-[0.625rem] text-center px-4 pb-2" style={{ color: "var(--muted)" }}>
         Nutrition: USDA FoodData Central &middot; Illustrations: Microsoft Fluent Emoji
       </p>
 

@@ -205,9 +205,9 @@ export default function DailyLogView({
               border: "none",
             }}
           >
-            <div className="text-[10px] font-medium truncate">{m.label}</div>
+            <div className="text-[0.625rem] font-medium truncate">{m.label}</div>
             <div
-              className="text-[10px]"
+              className="text-[0.625rem]"
               style={{ color: activeMeal === m.id ? "rgba(255,255,255,0.7)" : "var(--muted)" }}
             >
               {mealTotals[m.id]} cal
@@ -262,7 +262,7 @@ export default function DailyLogView({
                   >
                     {entry.name}
                   </button>
-                  <div className="text-[11px]" style={{ color: "var(--muted)" }}>
+                  <div className="text-[0.6875rem]" style={{ color: "var(--muted)" }}>
                     {entry.portionGrams > 0 ? `${Math.round(entry.portionGrams)}g` : "Quick add"}
                     {" "}&middot; P:{Math.round(entry.protein)}g C:{Math.round(entry.carbs)}g F:{Math.round(entry.fat)}g
                   </div>
@@ -423,7 +423,7 @@ export default function DailyLogView({
                   onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                 >
                   <div className="text-sm font-medium">{sm.name}</div>
-                  <div className="text-[11px]" style={{ color: "var(--muted)" }}>
+                  <div className="text-[0.6875rem]" style={{ color: "var(--muted)" }}>
                     {sm.entries.length} items &middot;{" "}
                     {sm.entries.reduce((sum, e) => sum + e.calories, 0)} cal
                   </div>

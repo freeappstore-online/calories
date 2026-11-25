@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { UserProfile, ActivityLevel, WeightGoal, Sex, TargetOverrides } from "../data/types";
 import BackupSection from "./BackupSection";
 import PortionStepsSettings from "./PortionStepsSettings";
+import AppearanceSettings from "./AppearanceSettings";
 import TargetsSection from "./TargetsSection";
 import { calculateBMI, bmiCategory, calculateTDEE, suggestCalories } from "../lib/nutrition";
 
@@ -268,11 +269,11 @@ export default function ProfileView({ profile, onSave, overrides, onOverridesCha
             <div className="text-xl font-bold" style={{ color: "var(--ink)" }}>
               {valid ? bmi : "—"}
             </div>
-            <div className="text-[10px]" style={{ color: "var(--muted)" }}>
+            <div className="text-[0.625rem]" style={{ color: "var(--muted)" }}>
               BMI
             </div>
             <div
-              className="text-[10px] font-medium"
+              className="text-[0.625rem] font-medium"
               style={{
                 color:
                   bmi < 18.5 || bmi >= 30
@@ -289,7 +290,7 @@ export default function ProfileView({ profile, onSave, overrides, onOverridesCha
             <div className="text-xl font-bold" style={{ color: "var(--ink)" }}>
               {valid ? tdee : "—"}
             </div>
-            <div className="text-[10px]" style={{ color: "var(--muted)" }}>
+            <div className="text-[0.625rem]" style={{ color: "var(--muted)" }}>
               TDEE (cal)
             </div>
           </div>
@@ -297,7 +298,7 @@ export default function ProfileView({ profile, onSave, overrides, onOverridesCha
             <div className="text-xl font-bold" style={{ color: "var(--accent)" }}>
               {valid ? suggested : "—"}
             </div>
-            <div className="text-[10px]" style={{ color: "var(--muted)" }}>
+            <div className="text-[0.625rem]" style={{ color: "var(--muted)" }}>
               Suggested (cal)
             </div>
           </div>
@@ -313,6 +314,7 @@ export default function ProfileView({ profile, onSave, overrides, onOverridesCha
         Save profile
       </button>
 
+      <AppearanceSettings />
       <PortionStepsSettings />
 
       <TargetsSection profile={profile} overrides={overrides} onChange={onOverridesChange} />

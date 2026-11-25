@@ -32,7 +32,7 @@ export default function PortionStepsSettings() {
           <label key={f.key} className="flex items-center justify-between gap-3">
             <span className="text-xs" style={{ color: "var(--ink)" }}>
               {f.label}
-              <span className="block text-[10px]" style={{ color: "var(--muted)" }}>
+              <span className="block text-[0.625rem]" style={{ color: "var(--muted)" }}>
                 {f.hint}
               </span>
             </span>

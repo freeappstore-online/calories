@@ -57,7 +57,7 @@ export default function RecentFoods({ meal, favorites, onAdd }: RecentFoodsProps
                   {image && <FoodIcon image={image} size={32} />}
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium truncate">{t.name}</div>
-                    <div className="text-[11px]" style={{ color: "var(--muted)" }}>
+                    <div className="text-[0.6875rem]" style={{ color: "var(--muted)" }}>
                       {Math.round(t.portionGrams)} g &middot; {t.calories} cal
                     </div>
                   </div>
