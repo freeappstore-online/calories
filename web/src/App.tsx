@@ -227,6 +227,7 @@ export default function App() {
       <nav
         className="shrink-0 fixed bottom-0 left-0 right-0 flex items-center justify-around py-2 px-2"
         style={{
+          paddingBottom: "calc(0.5rem + env(safe-area-inset-bottom))",
           background: "var(--dock)",
           borderTop: "1px solid var(--line)",
         }}

@@ -1,10 +1,13 @@
 import { useState, useMemo, useCallback } from "react";
 import type { DailyLog, DailyGoals, MealType, FoodEntry, SavedMeal } from "../data/types";
 import { sumEntries } from "../lib/nutrition";
-import { formatDate, shiftDate } from "../lib/dates";
+import { formatDate, shiftDate, today } from "../lib/dates";
 import ProgressRing from "./ProgressRing";
 import FoodSearch from "./FoodSearch";
 import FoodIcon from "./FoodIcon";
+import Modal from "./Modal";
+import EditEntryModal from "./EditEntryModal";
+import { defaultMealForTime } from "../lib/entryEdit";
 import { foodById } from "../data";
 
 const MEALS: { id: MealType; label: string; icon: string }[] = [
@@ -38,13 +41,20 @@ export default function DailyLogView({
   onLoadSavedMeal,
   onCopyYesterday,
 }: DailyLogViewProps) {
-  const [activeMeal, setActiveMeal] = useState<MealType>("breakfast");
+  const [activeMeal, setActiveMeal] = useState<MealType>(() => defaultMealForTime(new Date()));
   const [showAddFood, setShowAddFood] = useState(false);
   const [confirmCopyDate, setConfirmCopyDate] = useState<string | null>(null);
   const [copyMsg, setCopyMsg] = useState<string | null>(null);
   const [saveMealName, setSaveMealName] = useState("");
   const [showSaveMeal, setShowSaveMeal] = useState(false);
   const [showLoadMeal, setShowLoadMeal] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const editing = log.entries.find((e) => e.id === editingId) ?? null;
+
+  const changeDate = (d: string) => {
+    if (d === today()) setActiveMeal(defaultMealForTime(new Date()));
+    onDateChange(d);
+  };
 
   const totals = useMemo(() => sumEntries(log.entries), [log.entries]);
 
@@ -87,6 +97,14 @@ export default function DailyLogView({
     [log, onLogChange],
   );
 
+  const handleUpdateEntry = (updated: FoodEntry) => {
+    onLogChange({
+      ...log,
+      entries: log.entries.map((e) => (e.id === updated.id ? updated : e)),
+    });
+    setEditingId(null);
+  };
+
   const handleSaveMealConfirm = () => {
     if (!saveMealName.trim() || mealEntries.length === 0) return;
     onSaveMeal(saveMealName.trim(), mealEntries);
@@ -113,7 +131,8 @@ export default function DailyLogView({
       {/* Date selector */}
       <div className="flex items-center justify-between">
         <button
-          onClick={() => onDateChange(shiftDate(date, -1))}
+          onClick={() => changeDate(shiftDate(date, -1))}
+          aria-label="Previous day"
           className="w-8 h-8 flex items-center justify-center rounded-lg cursor-pointer"
           style={{ background: "var(--panel)", border: "none", color: "var(--ink)" }}
         >
@@ -127,16 +146,18 @@ export default function DailyLogView({
           </div>
           <input
             type="date"
+            aria-label="Select date"
             value={date}
             onChange={(e) => {
-              if (e.target.value) onDateChange(e.target.value);
+              if (e.target.value) changeDate(e.target.value);
             }}
             className="text-xs mt-0.5 bg-transparent border-none outline-none cursor-pointer"
             style={{ color: "var(--muted)" }}
           />
         </div>
         <button
-          onClick={() => onDateChange(shiftDate(date, 1))}
+          onClick={() => changeDate(shiftDate(date, 1))}
+          aria-label="Next day"
           className="w-8 h-8 flex items-center justify-center rounded-lg cursor-pointer"
           style={{ background: "var(--panel)", border: "none", color: "var(--ink)" }}
         >
@@ -208,8 +229,9 @@ export default function DailyLogView({
             {mealEntries.map((entry) => (
               <div
                 key={entry.id}
-                className="flex items-center justify-between px-4 py-3"
+                className="flex items-center justify-between px-4 py-3 cursor-pointer"
                 style={{ borderBottom: "1px solid var(--line)" }}
+                onClick={() => setEditingId(entry.id)}
               >
                 {entry.foodId && foodById.has(entry.foodId) && (
                   <span className="mr-3 flex">
@@ -217,9 +239,17 @@ export default function DailyLogView({
                   </span>
                 )}
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate" style={{ color: "var(--ink)" }}>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingId(entry.id);
+                    }}
+                    aria-label={`Edit ${entry.name}`}
+                    className="block max-w-full text-left text-sm font-medium truncate cursor-pointer"
+                    style={{ color: "var(--ink)", background: "transparent", border: "none", padding: 0 }}
+                  >
                     {entry.name}
-                  </div>
+                  </button>
                   <div className="text-[11px]" style={{ color: "var(--muted)" }}>
                     {entry.portionGrams > 0 ? `${entry.portionGrams}g` : "Quick add"}
                     {" "}&middot; P:{entry.protein}g C:{entry.carbs}g F:{entry.fat}g
@@ -230,7 +260,11 @@ export default function DailyLogView({
                     {entry.calories}
                   </span>
                   <button
-                    onClick={() => handleRemoveEntry(entry.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemoveEntry(entry.id);
+                    }}
+                    aria-label={`Remove ${entry.name}`}
                     className="w-6 h-6 flex items-center justify-center rounded cursor-pointer"
                     style={{ background: "var(--panel)", border: "none", color: "var(--error)" }}
                   >
@@ -289,18 +323,13 @@ export default function DailyLogView({
 
       {/* Save meal dialog */}
       {showSaveMeal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          style={{ background: "rgba(0,0,0,0.5)" }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setShowSaveMeal(false);
-          }}
+        <Modal
+          titleId="save-meal-title"
+          onClose={() => setShowSaveMeal(false)}
+          className="w-80 rounded-xl p-4"
+          style={{ background: "var(--paper)", border: "1px solid var(--line)" }}
         >
-          <div
-            className="w-80 rounded-xl p-4"
-            style={{ background: "var(--paper)", border: "1px solid var(--line)" }}
-          >
-            <h3 className="text-sm font-bold mb-3" style={{ color: "var(--ink)" }}>
+            <h3 id="save-meal-title" className="text-sm font-bold mb-3" style={{ color: "var(--ink)" }}>
               Save as meal template
             </h3>
             <input
@@ -328,25 +357,19 @@ export default function DailyLogView({
                 Save
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* Load meal dialog */}
       {showLoadMeal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          style={{ background: "rgba(0,0,0,0.5)" }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setShowLoadMeal(false);
-          }}
+        <Modal
+          titleId="load-meal-title"
+          onClose={() => setShowLoadMeal(false)}
+          className="w-80 max-h-[60vh] flex flex-col rounded-xl overflow-hidden"
+          style={{ background: "var(--paper)", border: "1px solid var(--line)" }}
         >
-          <div
-            className="w-80 max-h-[60vh] flex flex-col rounded-xl overflow-hidden"
-            style={{ background: "var(--paper)", border: "1px solid var(--line)" }}
-          >
             <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--line)" }}>
-              <h3 className="text-sm font-bold" style={{ color: "var(--ink)" }}>
+              <h3 id="load-meal-title" className="text-sm font-bold" style={{ color: "var(--ink)" }}>
                 Load saved meal
               </h3>
             </div>
@@ -380,8 +403,11 @@ export default function DailyLogView({
                 Cancel
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
+      )}
+
+      {editing && (
+        <EditEntryModal entry={editing} onSave={handleUpdateEntry} onClose={() => setEditingId(null)} />
       )}
 
       {/* Food search modal */}

@@ -3,6 +3,7 @@ import type { FoodItem, MealType, FoodEntry } from "../data/types";
 import { today, formatDate } from "../lib/dates";
 import FoodBrowser from "./FoodBrowser";
 import FoodDetail from "./FoodDetail";
+import Modal from "./Modal";
 
 interface FoodsViewProps {
   /** The currently selected log day (YYYY-MM-DD) */
@@ -46,22 +47,18 @@ export default function FoodsView({ date, onAdd }: FoodsViewProps) {
       )}
 
       {selectedFood && (
-        <div
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
-          style={{ background: "rgba(0,0,0,0.5)" }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setSelectedFood(null);
-          }}
+        <Modal
+          titleId="food-detail-title"
+          onClose={() => setSelectedFood(null)}
+          sheet
+          className="w-full max-w-lg max-h-[90vh] flex flex-col rounded-t-2xl sm:rounded-2xl overflow-hidden"
+          style={{ background: "var(--paper)", border: "1px solid var(--line)" }}
         >
-          <div
-            className="w-full max-w-lg max-h-[90vh] flex flex-col rounded-t-2xl sm:rounded-2xl overflow-hidden"
-            style={{ background: "var(--paper)", border: "1px solid var(--line)" }}
-          >
             <div
               className="flex items-center justify-between px-4 py-3 shrink-0"
               style={{ borderBottom: "1px solid var(--line)" }}
             >
-              <h2 className="text-base font-bold" style={{ color: "var(--ink)" }}>
+              <h2 id="food-detail-title" className="text-base font-bold" style={{ color: "var(--ink)" }}>
                 {selectedFood.name}
               </h2>
               <button
@@ -82,8 +79,7 @@ export default function FoodsView({ date, onAdd }: FoodsViewProps) {
               onMealChange={setMeal}
               onAdd={handleAdd}
             />
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

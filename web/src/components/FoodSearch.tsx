@@ -3,6 +3,7 @@ import type { FoodItem, MealType, FoodEntry } from "../data/types";
 import FoodBrowser from "./FoodBrowser";
 import FoodDetail from "./FoodDetail";
 import RecentFoods from "./RecentFoods";
+import Modal from "./Modal";
 
 interface FoodSearchProps {
   meal: MealType;
@@ -35,23 +36,19 @@ export default function FoodSearch({ meal, onAdd, onClose }: FoodSearchProps) {
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
-      style={{ background: "rgba(0,0,0,0.5)" }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+    <Modal
+      titleId="food-search-title"
+      onClose={onClose}
+      sheet
+      className="w-full max-w-lg max-h-[90vh] flex flex-col rounded-t-2xl sm:rounded-2xl overflow-hidden"
+      style={{ background: "var(--paper)", border: "1px solid var(--line)" }}
     >
-      <div
-        className="w-full max-w-lg max-h-[90vh] flex flex-col rounded-t-2xl sm:rounded-2xl overflow-hidden"
-        style={{ background: "var(--paper)", border: "1px solid var(--line)" }}
-      >
         {/* Header */}
         <div
           className="flex items-center justify-between px-4 py-3 shrink-0"
           style={{ borderBottom: "1px solid var(--line)" }}
         >
-          <h2 className="text-base font-bold" style={{ color: "var(--ink)" }}>
+          <h2 id="food-search-title" className="text-base font-bold" style={{ color: "var(--ink)" }}>
             {selectedFood ? selectedFood.name : "Add Food"}
           </h2>
           <div className="flex items-center gap-2">
@@ -70,6 +67,7 @@ export default function FoodSearch({ meal, onAdd, onClose }: FoodSearchProps) {
             )}
             <button
               onClick={selectedFood ? () => setSelectedFood(null) : onClose}
+              aria-label={selectedFood ? "Back" : "Close"}
               className="w-7 h-7 flex items-center justify-center rounded-lg cursor-pointer"
               style={{ background: "var(--panel)", border: "none", color: "var(--ink)" }}
             >
@@ -143,7 +141,6 @@ export default function FoodSearch({ meal, onAdd, onClose }: FoodSearchProps) {
             renderTop={(favorites) => <RecentFoods meal={meal} favorites={favorites} onAdd={onAdd} />}
           />
         )}
-      </div>
-    </div>
+    </Modal>
   );
 }
