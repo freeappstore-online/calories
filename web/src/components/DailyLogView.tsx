@@ -12,11 +12,11 @@ import EditEntryModal from "./EditEntryModal";
 import { defaultMealForTime, scaleEntry } from "../lib/entryEdit";
 import { imageFor } from "../lib/customFoods";
 
-const MEALS: { id: MealType; label: string; icon: string }[] = [
-  { id: "breakfast", label: "Breakfast", icon: "🌅" },
-  { id: "lunch", label: "Lunch", icon: "☀️" },
-  { id: "dinner", label: "Dinner", icon: "🌙" },
-  { id: "snacks", label: "Snacks", icon: "🍿" },
+const MEALS: { id: MealType; label: string }[] = [
+  { id: "breakfast", label: "Breakfast" },
+  { id: "lunch", label: "Lunch" },
+  { id: "dinner", label: "Dinner" },
+  { id: "snacks", label: "Snacks" },
 ];
 
 interface DailyLogViewProps {
@@ -148,10 +148,9 @@ export default function DailyLogView({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </button>
-        <div className="text-center">
-          <div className="text-sm font-bold" style={{ color: "var(--ink)" }}>
-            {formatDate(date)}
-          </div>
+        {/* Invisible native date input over the label: tapping the label opens the picker */}
+        <label className="relative px-3 py-1.5 rounded-lg cursor-pointer text-sm font-bold" style={{ color: "var(--ink)" }}>
+          {formatDate(date)}
           <input
             type="date"
             aria-label="Select date"
@@ -159,10 +158,10 @@ export default function DailyLogView({
             onChange={(e) => {
               if (e.target.value) changeDate(e.target.value);
             }}
-            className="text-xs mt-0.5 bg-transparent border-none outline-none cursor-pointer"
-            style={{ color: "var(--muted)" }}
+            onClick={(e) => e.currentTarget.showPicker?.()}
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
           />
-        </div>
+        </label>
         <button
           onClick={() => changeDate(shiftDate(date, 1))}
           aria-label="Next day"
@@ -193,7 +192,6 @@ export default function DailyLogView({
               border: "none",
             }}
           >
-            <div className="text-sm">{m.icon}</div>
             <div className="text-[10px] font-medium truncate">{m.label}</div>
             <div
               className="text-[10px]"
