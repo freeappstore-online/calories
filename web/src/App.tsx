@@ -16,8 +16,9 @@ import DailyLogView from "./components/DailyLogView";
 import GoalsView from "./components/GoalsView";
 import DashboardView from "./components/DashboardView";
 import ProfileView from "./components/ProfileView";
+import FoodsView from "./components/FoodsView";
 
-type Page = "log" | "dashboard" | "goals" | "profile";
+type Page = "log" | "foods" | "dashboard" | "goals" | "profile";
 
 const NAV_ITEMS: { id: Page; label: string; icon: React.ReactNode }[] = [
   {
@@ -26,6 +27,15 @@ const NAV_ITEMS: { id: Page; label: string; icon: React.ReactNode }[] = [
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+      </svg>
+    ),
+  },
+  {
+    id: "foods",
+    label: "Foods",
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
       </svg>
     ),
   },
@@ -77,6 +87,13 @@ export default function App() {
       saveLog(newLog);
     },
     [],
+  );
+
+  const handleAddEntry = useCallback(
+    (entry: FoodEntry) => {
+      handleLogChange({ ...log, entries: [...log.entries, entry] });
+    },
+    [log, handleLogChange],
   );
 
   const handleGoalsSave = useCallback((newGoals: DailyGoals) => {
@@ -169,6 +186,7 @@ export default function App() {
               onCopyYesterday={handleCopyYesterday}
             />
           )}
+          {page === "foods" && <FoodsView onAdd={handleAddEntry} />}
           {page === "dashboard" && (
             <DashboardView date={date} goals={goals} />
           )}

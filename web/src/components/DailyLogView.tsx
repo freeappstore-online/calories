@@ -4,6 +4,8 @@ import { sumEntries } from "../lib/nutrition";
 import { formatDate, shiftDate } from "../lib/dates";
 import ProgressRing from "./ProgressRing";
 import FoodSearch from "./FoodSearch";
+import FoodIcon from "./FoodIcon";
+import { foodById } from "../data";
 
 const MEALS: { id: MealType; label: string; icon: string }[] = [
   { id: "breakfast", label: "Breakfast", icon: "🌅" },
@@ -192,6 +194,11 @@ export default function DailyLogView({
                 className="flex items-center justify-between px-4 py-3"
                 style={{ borderBottom: "1px solid var(--line)" }}
               >
+                {entry.foodId && foodById.has(entry.foodId) && (
+                  <span className="mr-3 flex">
+                    <FoodIcon image={foodById.get(entry.foodId)!.image} size={32} />
+                  </span>
+                )}
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium truncate" style={{ color: "var(--ink)" }}>
                     {entry.name}

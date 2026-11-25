@@ -14,6 +14,22 @@ export interface FoodItem {
   fiber: number;
   /** Sugar grams per 100g */
   sugar: number;
+  /** Illustration file name in /foods/<image>.webp */
+  image: string;
+  /** USDA FoodData Central id the values come from */
+  fdcId: number;
+  /** Micronutrients per 100g; null where USDA has no value */
+  satFat: number | null; // g
+  cholesterol: number | null; // mg
+  sodium: number | null; // mg
+  potassium: number | null; // mg
+  calcium: number | null; // mg
+  iron: number | null; // mg
+  magnesium: number | null; // mg
+  vitaminA: number | null; // µg RAE
+  vitaminC: number | null; // mg
+  vitaminD: number | null; // µg
+  vitaminB12: number | null; // µg
 }
 
 export type FoodCategory =
@@ -23,6 +39,8 @@ export type FoodCategory =
   | "grains"
   | "dairy"
   | "snacks"
+  | "sweets"
+  | "condiments"
   | "beverages"
   | "meals";
 
