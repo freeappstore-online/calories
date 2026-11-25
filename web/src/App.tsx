@@ -177,21 +177,14 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-screen" style={{ background: "var(--paper)" }}>
-      {/* Header */}
-      <header
-        className="shrink-0 flex items-center justify-between px-4 py-3"
-        style={{ borderBottom: "1px solid var(--line)", background: "var(--glass)" }}
-      >
-        <h1 className="text-lg font-bold" style={{ color: "var(--ink)" }}>
-          Calorie Counter
-        </h1>
-        <span className="text-xs" style={{ color: "var(--muted)" }}>
-          FreeAppStore
-        </span>
-      </header>
+      <h1 className="sr-only">Calorie Counter</h1>
 
       {/* Main scrollable area */}
-      <main className="flex-1 overflow-y-auto px-4 py-4 pb-20">
+      <main
+        className="flex-1 overflow-y-auto px-4 pb-20"
+        // keep content clear of the iOS status bar (viewport-fit=cover)
+        style={{ paddingTop: "calc(1rem + env(safe-area-inset-top))" }}
+      >
         <div className="max-w-lg mx-auto">
           {page === "log" && (
             <DailyLogView
