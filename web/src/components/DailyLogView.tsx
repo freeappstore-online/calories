@@ -8,7 +8,7 @@ import FoodIcon from "./FoodIcon";
 import Modal from "./Modal";
 import EditEntryModal from "./EditEntryModal";
 import { defaultMealForTime } from "../lib/entryEdit";
-import { foodById } from "../data";
+import { imageFor } from "../lib/customFoods";
 
 const MEALS: { id: MealType; label: string; icon: string }[] = [
   { id: "breakfast", label: "Breakfast", icon: "🌅" },
@@ -233,9 +233,9 @@ export default function DailyLogView({
                 style={{ borderBottom: "1px solid var(--line)" }}
                 onClick={() => setEditingId(entry.id)}
               >
-                {entry.foodId && foodById.has(entry.foodId) && (
+                {imageFor(entry.foodId) && (
                   <span className="mr-3 flex">
-                    <FoodIcon image={foodById.get(entry.foodId)!.image} size={32} />
+                    <FoodIcon image={imageFor(entry.foodId)!} size={32} />
                   </span>
                 )}
                 <div className="flex-1 min-w-0">

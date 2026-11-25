@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { servingSizes } from "../data";
+import { deleteCustomFood, servingsFor } from "../lib/customFoods";
 import type { FoodItem, MealType, FoodEntry } from "../data/types";
 import { scaleNutrition } from "../lib/nutrition";
 import FoodIcon from "./FoodIcon";
@@ -12,7 +12,7 @@ const MEALS: { id: MealType; label: string }[] = [
 ];
 
 /** Micronutrients shown in the facts list, with FDA Daily Values */
-const MICROS: { key: keyof FoodItem; label: string; unit: string; dv?: number }[] = [
+export const MICROS: { key: keyof FoodItem; label: string; unit: string; dv?: number }[] = [
   { key: "satFat", label: "Saturated fat", unit: "g", dv: 20 },
   { key: "cholesterol", label: "Cholesterol", unit: "mg", dv: 300 },
   { key: "sodium", label: "Sodium", unit: "mg", dv: 2300 },
@@ -32,13 +32,16 @@ interface FoodDetailProps {
   /** When set, the user can choose which meal to add to */
   onMealChange?: (meal: MealType) => void;
   onAdd: (entry: FoodEntry) => void;
+  /** Called after a custom food was deleted from this detail view */
+  onDeleted?: () => void;
 }
 
 /** Serving picker, nutrition facts and add button for one food */
-export default function FoodDetail({ food, meal, onMealChange, onAdd }: FoodDetailProps) {
-  const servings = servingSizes[food.id];
+export default function FoodDetail({ food, meal, onMealChange, onAdd, onDeleted }: FoodDetailProps) {
+  const servings = servingsFor(food);
   const [gramsText, setGramsText] = useState(String(servings?.[0]?.grams ?? 100));
   const [servingIdx, setServingIdx] = useState<number | null>(servings?.length ? 0 : null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const portionGrams = Number(gramsText);
   const valid = Number.isFinite(portionGrams) && portionGrams >= 1;
   const preview = scaleNutrition(food, valid ? portionGrams : 0);
@@ -188,7 +191,7 @@ export default function FoodDetail({ food, meal, onMealChange, onAdd }: FoodDeta
         })}
       </div>
       <p className="text-[10px] text-center" style={{ color: "var(--muted)" }}>
-        Source: USDA FoodData Central #{food.fdcId}
+        {food.fdcId ? `Source: USDA FoodData Central #${food.fdcId}` : "Custom food"}
       </p>
 
       {onMealChange && (
@@ -218,6 +221,31 @@ export default function FoodDetail({ food, meal, onMealChange, onAdd }: FoodDeta
       >
         Add to {meal}
       </button>
+
+      {food.category === "custom" && (
+        <div className="flex gap-2">
+          {confirmDelete && (
+            <button
+              onClick={() => setConfirmDelete(false)}
+              className="flex-1 py-2 rounded-lg text-xs cursor-pointer"
+              style={{ background: "var(--panel)", color: "var(--muted)", border: "none" }}
+            >
+              Keep food
+            </button>
+          )}
+          <button
+            onClick={() => {
+              if (!confirmDelete) return setConfirmDelete(true);
+              deleteCustomFood(food.id);
+              onDeleted?.();
+            }}
+            className="flex-1 py-2 rounded-lg text-xs font-semibold cursor-pointer"
+            style={{ background: "transparent", color: "#ef4444", border: "1px solid #ef4444" }}
+          >
+            {confirmDelete ? "Confirm delete (logged entries stay)" : "Delete food"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

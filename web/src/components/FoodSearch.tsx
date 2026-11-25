@@ -129,7 +129,7 @@ export default function FoodSearch({ meal, onAdd, onClose }: FoodSearchProps) {
 
         {/* Food selection detail */}
         {selectedFood && (
-          <FoodDetail key={selectedFood.id} food={selectedFood} meal={meal} onAdd={onAdd} />
+          <FoodDetail key={selectedFood.id} food={selectedFood} meal={meal} onAdd={onAdd} onDeleted={() => setSelectedFood(null)} />
         )}
 
         {/* Search & browse list */}

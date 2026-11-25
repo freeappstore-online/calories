@@ -1,4 +1,4 @@
-import { foodById, servingSizes } from "../data";
+import { findFood, servingsFor } from "./customFoods";
 import type { FoodEntry, MealType } from "../data/types";
 import { getAllLogs } from "./storage";
 import { scaleNutrition } from "./nutrition";
@@ -80,7 +80,7 @@ export function toggleFavorite(foodId: string): string[] {
   return next;
 }
 
-/** Favorite foods that exist in the library, as templates: last logged portion, else first serving */
+/** Favorite foods that exist in the library or custom foods, as templates: last logged portion, else first serving */
 export function getFavoriteTemplates(favorites: string[]): FoodTemplate[] {
   const latest = new Map<string, FoodEntry>();
   for (const { entry } of historyNewestFirst()) {
@@ -93,9 +93,9 @@ export function getFavoriteTemplates(favorites: string[]): FoodTemplate[] {
       result.push(toTemplate(logged));
       continue;
     }
-    const food = foodById.get(id);
+    const food = findFood(id);
     if (!food) continue;
-    const portionGrams = servingSizes[id]?.[0]?.grams ?? 100;
+    const portionGrams = servingsFor(food)?.[0]?.grams ?? 100;
     result.push({ foodId: id, name: food.name, portionGrams, ...scaleNutrition(food, portionGrams) });
   }
   return result;

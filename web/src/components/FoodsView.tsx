@@ -17,6 +17,8 @@ export default function FoodsView({ date, onAdd }: FoodsViewProps) {
   const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null);
   const [meal, setMeal] = useState<MealType>("snacks");
   const [added, setAdded] = useState<string | null>(null);
+  /** Bumped after a custom food is deleted so the browser reloads its list */
+  const [browserKey, setBrowserKey] = useState(0);
 
   const handleAdd = (entry: FoodEntry) => {
     onAdd(entry);
@@ -32,7 +34,7 @@ export default function FoodsView({ date, onAdd }: FoodsViewProps) {
           Adding to {formatDate(date)}, not today
         </p>
       )}
-      <FoodBrowser layout="grid" onSelect={setSelectedFood} />
+      <FoodBrowser key={browserKey} layout="grid" onSelect={setSelectedFood} />
       <p className="text-[10px] text-center px-4 pb-2" style={{ color: "var(--muted)" }}>
         Nutrition: USDA FoodData Central &middot; Illustrations: Microsoft Fluent Emoji
       </p>
@@ -78,6 +80,10 @@ export default function FoodsView({ date, onAdd }: FoodsViewProps) {
               meal={meal}
               onMealChange={setMeal}
               onAdd={handleAdd}
+              onDeleted={() => {
+                setSelectedFood(null);
+                setBrowserKey((k) => k + 1);
+              }}
             />
         </Modal>
       )}

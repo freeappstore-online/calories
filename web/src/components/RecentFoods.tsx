@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { foodById } from "../data";
+import { imageFor } from "../lib/customFoods";
 import type { FoodEntry, MealType } from "../data/types";
 import {
   getFavoriteTemplates,
@@ -45,7 +45,7 @@ export default function RecentFoods({ meal, favorites, onAdd }: RecentFoodsProps
           </div>
           <div className="space-y-1">
             {section.items.map((t) => {
-              const image = foodById.get(t.foodId!)?.image;
+              const image = imageFor(t.foodId);
               return (
                 <button
                   key={t.foodId}

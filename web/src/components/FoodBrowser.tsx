@@ -2,6 +2,8 @@ import { useState, useMemo, type ReactNode } from "react";
 import { foods, categories } from "../data";
 import type { FoodItem } from "../data/types";
 import FoodIcon from "./FoodIcon";
+import CustomFoodForm from "./CustomFoodForm";
+import { getCustomFoods } from "../lib/customFoods";
 import { getFavorites, toggleFavorite } from "../lib/foodHistory";
 
 interface FoodBrowserProps {
@@ -33,9 +35,12 @@ export default function FoodBrowser({ layout, onSelect, autoFocus, renderTop }: 
   const [favorites, setFavorites] = useState(getFavorites);
   const [query, setQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [customFoods, setCustomFoods] = useState(getCustomFoods);
+  const [creating, setCreating] = useState(false);
+  const allFoods = useMemo<FoodItem[]>(() => [...customFoods, ...foods], [customFoods]);
 
   const filtered = useMemo(() => {
-    let result = foods;
+    let result = allFoods;
     if (selectedCategory) {
       result = result.filter((f) => f.category === selectedCategory);
     }
@@ -48,24 +53,31 @@ export default function FoodBrowser({ layout, onSelect, autoFocus, renderTop }: 
       );
     }
     return result;
-  }, [query, selectedCategory]);
+  }, [allFoods, query, selectedCategory]);
 
   return (
     <>
-      <div className="px-4 pt-3">
+      <div className="px-4 pt-3 flex gap-2">
         <input
           type="text"
-          placeholder={`Search ${foods.length} foods...`}
+          placeholder={`Search ${allFoods.length} foods...`}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           autoFocus={autoFocus}
-          className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+          className="flex-1 min-w-0 px-3 py-2 rounded-lg text-sm outline-none"
           style={{
             background: "var(--panel)",
             border: "1px solid var(--line)",
             color: "var(--ink)",
           }}
         />
+        <button
+          onClick={() => setCreating(true)}
+          className="px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap cursor-pointer"
+          style={{ background: "var(--panel)", color: "var(--accent)", border: "1px solid var(--line)" }}
+        >
+          + Create food
+        </button>
       </div>
 
       {/* Category pills */}
@@ -81,7 +93,7 @@ export default function FoodBrowser({ layout, onSelect, autoFocus, renderTop }: 
         >
           All
         </button>
-        {categories.map((c) => (
+        {[...(customFoods.length > 0 ? [{ id: "custom", name: "My foods", emoji: "⭐" }] : []), ...categories].map((c) => (
           <button
             key={c.id}
             onClick={() => setSelectedCategory(c.id === selectedCategory ? null : c.id)}
@@ -174,6 +186,15 @@ export default function FoodBrowser({ layout, onSelect, autoFocus, renderTop }: 
             ))}
           </div>
         </div>
+      )}
+      {creating && (
+        <CustomFoodForm
+          onClose={() => setCreating(false)}
+          onSaved={() => {
+            setCustomFoods(getCustomFoods());
+            setCreating(false);
+          }}
+        />
       )}
     </>
   );

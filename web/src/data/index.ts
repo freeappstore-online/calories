@@ -1,6 +1,7 @@
 export { foods, foodById, servingSizes, categories } from "./foods";
 export type {
   FoodItem,
+  CustomFood,
   FoodCategory,
   MealType,
   FoodEntry,

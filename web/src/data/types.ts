@@ -16,8 +16,8 @@ export interface FoodItem {
   sugar: number;
   /** Illustration file name in /foods/<image>.webp */
   image: string;
-  /** USDA FoodData Central id the values come from */
-  fdcId: number;
+  /** USDA FoodData Central id the values come from; absent for custom foods */
+  fdcId?: number;
   /** Micronutrients per 100g; null where USDA has no value */
   satFat: number | null; // g
   cholesterol: number | null; // mg
@@ -32,6 +32,14 @@ export interface FoodItem {
   vitaminB12: number | null; // µg
 }
 
+/** A user-defined food: nutrition per 100 g, id is "custom:<uuid>" */
+export interface CustomFood extends FoodItem {
+  category: "custom";
+  /** The serving the user entered the label values for */
+  servingLabel: string;
+  servingGrams: number;
+}
+
 export type FoodCategory =
   | "fruits"
   | "vegetables"
@@ -42,7 +50,8 @@ export type FoodCategory =
   | "sweets"
   | "condiments"
   | "beverages"
-  | "meals";
+  | "meals"
+  | "custom";
 
 export type MealType = "breakfast" | "lunch" | "dinner" | "snacks";
 
