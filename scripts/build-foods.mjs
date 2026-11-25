@@ -97,9 +97,7 @@ const sr = loadSource(srDir, 0);
 
 function round(value, field) {
   if (field === "calories") return Math.round(value);
-  if (["cholesterol", "sodium", "potassium", "calcium", "magnesium"].includes(field) && value >= 10) {
-    return Math.round(value);
-  }
+  if (!MACROS.includes(field)) return Number(value.toPrecision(3)); // micros: keep precision, round on display
   return Math.round(value * 10) / 10;
 }
 
@@ -112,16 +110,29 @@ function portionLabel(src, p) {
   return parts.join(" ").replace(/\s+,/g, ",");
 }
 
+/** Strip USDA jargon from a serving label */
+function cleanLabel(label) {
+  return label
+    .replace(/\s*\(yield after cooking\)/i, "")
+    .replace(/,?\s*NS as to [^,()]*/gi, "")
+    .replace(/,?\s*NFS\b/gi, "")
+    .replace(/\s+,/g, ",")
+    .trim();
+}
+
 function servingsFor(src, fdcId) {
   const seen = new Set();
+  const seenGrams = new Set();
   const out = [];
   const list = (src.portions.get(fdcId) ?? []).sort((a, b) => Number(a.seq_num) - Number(b.seq_num));
   for (const p of list) {
-    const label = portionLabel(src, p).trim();
+    const label = cleanLabel(portionLabel(src, p));
     const grams = Math.round(Number(p.gram_weight) * 10) / 10;
     if (!label || !(grams > 0) || /quantity not specified|guideline amount/i.test(label)) continue;
     if (seen.has(label.toLowerCase())) continue;
+    if (seenGrams.has(grams)) continue;
     seen.add(label.toLowerCase());
+    seenGrams.add(grams);
     out.push({ label, grams });
     if (out.length === 4) break;
   }

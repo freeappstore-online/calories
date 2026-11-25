@@ -37,11 +37,15 @@ interface FoodDetailProps {
 /** Serving picker, nutrition facts and add button for one food */
 export default function FoodDetail({ food, meal, onMealChange, onAdd }: FoodDetailProps) {
   const servings = servingSizes[food.id];
-  const [portionGrams, setPortionGrams] = useState(servings?.[0]?.grams ?? 100);
-  const preview = scaleNutrition(food, portionGrams);
-  const factor = portionGrams / 100;
+  const [gramsText, setGramsText] = useState(String(servings?.[0]?.grams ?? 100));
+  const [servingIdx, setServingIdx] = useState<number | null>(servings?.length ? 0 : null);
+  const portionGrams = Number(gramsText);
+  const valid = Number.isFinite(portionGrams) && portionGrams >= 1;
+  const preview = scaleNutrition(food, valid ? portionGrams : 0);
+  const factor = valid ? portionGrams / 100 : 0;
 
   const handleAdd = () => {
+    if (!valid) return;
     onAdd({
       id: crypto.randomUUID(),
       foodId: food.id,
@@ -65,15 +69,18 @@ export default function FoodDetail({ food, meal, onMealChange, onAdd }: FoodDeta
             Common servings
           </label>
           <div className="flex flex-wrap gap-2">
-            {servings.map((s) => (
+            {servings.map((s, i) => (
               <button
                 key={s.label}
-                onClick={() => setPortionGrams(s.grams)}
+                onClick={() => {
+                  setServingIdx(i);
+                  setGramsText(String(s.grams));
+                }}
                 className="px-3 py-1.5 rounded-lg text-xs cursor-pointer"
                 style={{
-                  background: portionGrams === s.grams ? "var(--accent)" : "var(--panel)",
-                  color: portionGrams === s.grams ? "#fff" : "var(--ink)",
-                  border: `1px solid ${portionGrams === s.grams ? "var(--accent)" : "var(--line)"}`,
+                  background: servingIdx === i ? "var(--accent)" : "var(--panel)",
+                  color: servingIdx === i ? "#fff" : "var(--ink)",
+                  border: `1px solid ${servingIdx === i ? "var(--accent)" : "var(--line)"}`,
                 }}
               >
                 {s.label} ({s.grams}g)
@@ -90,8 +97,11 @@ export default function FoodDetail({ food, meal, onMealChange, onAdd }: FoodDeta
         </label>
         <input
           type="number"
-          value={portionGrams}
-          onChange={(e) => setPortionGrams(Math.max(1, Number(e.target.value)))}
+          value={gramsText}
+          onChange={(e) => {
+            setGramsText(e.target.value);
+            setServingIdx(null);
+          }}
           className="w-full px-3 py-2 rounded-lg text-sm outline-none"
           style={{
             background: "var(--panel)",
@@ -157,7 +167,7 @@ export default function FoodDetail({ food, meal, onMealChange, onAdd }: FoodDeta
         {MICROS.map((m) => {
           const per100 = food[m.key] as number | null;
           const raw = per100 === null ? null : per100 * factor;
-          const amount = raw === null ? null : raw >= 10 ? Math.round(raw) : Math.round(raw * 10) / 10;
+          const amount = raw === null ? null : raw >= 10 ? Math.round(raw) : raw >= 1 ? Math.round(raw * 10) / 10 : Math.round(raw * 100) / 100;
           return (
             <div
               key={m.key}
@@ -202,7 +212,8 @@ export default function FoodDetail({ food, meal, onMealChange, onAdd }: FoodDeta
 
       <button
         onClick={handleAdd}
-        className="w-full py-2.5 rounded-lg text-sm font-semibold cursor-pointer"
+        disabled={!valid}
+        className="w-full py-2.5 rounded-lg text-sm font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         style={{ background: "var(--accent)", color: "#fff", border: "none" }}
       >
         Add to {meal}

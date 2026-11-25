@@ -8,13 +8,23 @@ interface GoalsViewProps {
 }
 
 export default function GoalsView({ goals, suggestedCalories, onSave }: GoalsViewProps) {
-  const [calories, setCalories] = useState(goals.calories);
-  const [protein, setProtein] = useState(goals.protein);
-  const [carbs, setCarbs] = useState(goals.carbs);
-  const [fat, setFat] = useState(goals.fat);
+  // Raw text state so fields can be cleared and retyped; parsed when computing/saving.
+  const [caloriesText, setCaloriesText] = useState(String(goals.calories));
+  const [proteinText, setProteinText] = useState(String(goals.protein));
+  const [carbsText, setCarbsText] = useState(String(goals.carbs));
+  const [fatText, setFatText] = useState(String(goals.fat));
+
+  const toNum = (t: string) => Math.max(0, Number(t) || 0);
+  const calories = toNum(caloriesText);
+  const protein = toNum(proteinText);
+  const carbs = toNum(carbsText);
+  const fat = toNum(fatText);
+  const valid = [caloriesText, proteinText, carbsText, fatText].every(
+    (t) => t.trim() !== "" && Number(t) >= 0,
+  );
 
   const handleSave = () => {
-    onSave({ calories, protein, carbs, fat });
+    if (valid) onSave({ calories, protein, carbs, fat });
   };
 
   // Macro percentages
@@ -25,10 +35,10 @@ export default function GoalsView({ goals, suggestedCalories, onSave }: GoalsVie
 
   /** Auto-distribute macros for a given calorie target using 30/40/30 split */
   const autoDistribute = (cal: number) => {
-    setCalories(cal);
-    setProtein(Math.round((cal * 0.30) / 4));
-    setCarbs(Math.round((cal * 0.40) / 4));
-    setFat(Math.round((cal * 0.30) / 9));
+    setCaloriesText(String(cal));
+    setProteinText(String(Math.round((cal * 0.30) / 4)));
+    setCarbsText(String(Math.round((cal * 0.40) / 4)));
+    setFatText(String(Math.round((cal * 0.30) / 9)));
   };
 
   return (
@@ -48,8 +58,8 @@ export default function GoalsView({ goals, suggestedCalories, onSave }: GoalsVie
         <div className="flex items-center gap-3">
           <input
             type="number"
-            value={calories}
-            onChange={(e) => setCalories(Math.max(0, Number(e.target.value)))}
+            value={caloriesText}
+            onChange={(e) => setCaloriesText(e.target.value)}
             className="flex-1 px-3 py-2 rounded-lg text-sm outline-none"
             style={{ background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)" }}
             min={0}
@@ -102,8 +112,8 @@ export default function GoalsView({ goals, suggestedCalories, onSave }: GoalsVie
             <span className="text-xs w-14" style={{ color: "var(--ink)" }}>Protein</span>
             <input
               type="number"
-              value={protein}
-              onChange={(e) => setProtein(Math.max(0, Number(e.target.value)))}
+              value={proteinText}
+              onChange={(e) => setProteinText(e.target.value)}
               className="w-20 px-2 py-1.5 rounded-lg text-sm outline-none text-center"
               style={{ background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)" }}
               min={0}
@@ -117,8 +127,8 @@ export default function GoalsView({ goals, suggestedCalories, onSave }: GoalsVie
             <span className="text-xs w-14" style={{ color: "var(--ink)" }}>Carbs</span>
             <input
               type="number"
-              value={carbs}
-              onChange={(e) => setCarbs(Math.max(0, Number(e.target.value)))}
+              value={carbsText}
+              onChange={(e) => setCarbsText(e.target.value)}
               className="w-20 px-2 py-1.5 rounded-lg text-sm outline-none text-center"
               style={{ background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)" }}
               min={0}
@@ -132,8 +142,8 @@ export default function GoalsView({ goals, suggestedCalories, onSave }: GoalsVie
             <span className="text-xs w-14" style={{ color: "var(--ink)" }}>Fat</span>
             <input
               type="number"
-              value={fat}
-              onChange={(e) => setFat(Math.max(0, Number(e.target.value)))}
+              value={fatText}
+              onChange={(e) => setFatText(e.target.value)}
               className="w-20 px-2 py-1.5 rounded-lg text-sm outline-none text-center"
               style={{ background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)" }}
               min={0}
@@ -159,7 +169,8 @@ export default function GoalsView({ goals, suggestedCalories, onSave }: GoalsVie
 
       <button
         onClick={handleSave}
-        className="w-full py-2.5 rounded-lg text-sm font-semibold cursor-pointer"
+        disabled={!valid}
+        className="w-full py-2.5 rounded-lg text-sm font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         style={{ background: "var(--accent)", color: "#fff", border: "none" }}
       >
         Save goals

@@ -21,10 +21,16 @@ const GOAL_LABELS: Record<WeightGoal, string> = {
   gain: "Gain weight (+300 cal/day)",
 };
 
+const LB_PER_KG = 2.20462;
+
 export default function ProfileView({ profile, onSave }: ProfileViewProps) {
-  const [age, setAge] = useState(profile?.age ?? 30);
-  const [weight, setWeight] = useState(profile?.weight ?? 70);
-  const [height, setHeight] = useState(profile?.height ?? 170);
+  // Raw text state so fields can be cleared and retyped; parsed only when computing/saving.
+  const initialInches = Math.round((profile?.height ?? 170) / 2.54);
+  const [ageText, setAgeText] = useState(String(profile?.age ?? 30));
+  const [weightText, setWeightText] = useState(String(profile?.weight ?? 70));
+  const [heightText, setHeightText] = useState(String(profile?.height ?? 170));
+  const [ftText, setFtText] = useState(String(Math.floor(initialInches / 12)));
+  const [inText, setInText] = useState(String(initialInches % 12));
   const [sex, setSex] = useState<Sex>(profile?.sex ?? "male");
   const [activityLevel, setActivityLevel] = useState<ActivityLevel>(
     profile?.activityLevel ?? "moderate",
@@ -33,6 +39,19 @@ export default function ProfileView({ profile, onSave }: ProfileViewProps) {
     profile?.weightGoal ?? "maintain",
   );
   const [useImperial, setUseImperial] = useState(false);
+
+  const age = Number(ageText);
+  const weight = useImperial ? Number(weightText) / LB_PER_KG : Number(weightText);
+  const height = useImperial ? Number(ftText) * 30.48 + Number(inText) * 2.54 : Number(heightText);
+  const valid =
+    ageText.trim() !== "" &&
+    weightText.trim() !== "" &&
+    (useImperial ? ftText.trim() !== "" && inText.trim() !== "" : heightText.trim() !== "") &&
+    age >= 1 &&
+    age <= 120 &&
+    weight > 0 &&
+    height > 0 &&
+    (!useImperial || Number(inText) <= 11);
 
   const currentProfile: UserProfile = {
     age,
@@ -43,18 +62,29 @@ export default function ProfileView({ profile, onSave }: ProfileViewProps) {
     weightGoal,
   };
 
-  const bmi = calculateBMI(currentProfile);
-  const tdee = calculateTDEE(currentProfile);
-  const suggested = suggestCalories(currentProfile);
+  const bmi = valid ? calculateBMI(currentProfile) : 0;
+  const tdee = valid ? calculateTDEE(currentProfile) : 0;
+  const suggested = valid ? suggestCalories(currentProfile) : 0;
 
   const handleSave = () => {
-    onSave(currentProfile);
+    if (valid) onSave(currentProfile);
   };
 
-  // Imperial conversions
-  const weightDisplay = useImperial ? Math.round(weight * 2.205) : weight;
-  const heightFt = Math.floor(height / 30.48);
-  const heightIn = Math.round((height - heightFt * 30.48) / 2.54);
+  /** Switch units, converting the current values so nothing is lost */
+  const toggleUnits = () => {
+    if (valid) {
+      if (!useImperial) {
+        const totalIn = Math.round(height / 2.54);
+        setWeightText(String(Math.round(weight * LB_PER_KG * 10) / 10));
+        setFtText(String(Math.floor(totalIn / 12)));
+        setInText(String(totalIn % 12));
+      } else {
+        setWeightText(String(Math.round(weight * 10) / 10));
+        setHeightText(String(Math.round(height)));
+      }
+    }
+    setUseImperial(!useImperial);
+  };
 
   return (
     <div className="space-y-4">
@@ -63,7 +93,7 @@ export default function ProfileView({ profile, onSave }: ProfileViewProps) {
           Profile
         </h2>
         <button
-          onClick={() => setUseImperial(!useImperial)}
+          onClick={toggleUnits}
           className="text-xs px-2 py-1 rounded-lg cursor-pointer"
           style={{ background: "var(--panel)", border: "1px solid var(--line)", color: "var(--muted)" }}
         >
@@ -106,8 +136,8 @@ export default function ProfileView({ profile, onSave }: ProfileViewProps) {
           </label>
           <input
             type="number"
-            value={age}
-            onChange={(e) => setAge(Math.max(1, Number(e.target.value)))}
+            value={ageText}
+            onChange={(e) => setAgeText(e.target.value)}
             className="w-full px-3 py-2 rounded-lg text-sm outline-none"
             style={{ background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)" }}
             min={1}
@@ -122,11 +152,8 @@ export default function ProfileView({ profile, onSave }: ProfileViewProps) {
           </label>
           <input
             type="number"
-            value={weightDisplay}
-            onChange={(e) => {
-              const v = Math.max(1, Number(e.target.value));
-              setWeight(useImperial ? Math.round(v / 2.205) : v);
-            }}
+            value={weightText}
+            onChange={(e) => setWeightText(e.target.value)}
             className="w-full px-3 py-2 rounded-lg text-sm outline-none"
             style={{ background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)" }}
             min={1}
@@ -143,11 +170,9 @@ export default function ProfileView({ profile, onSave }: ProfileViewProps) {
               <div className="flex items-center gap-1">
                 <input
                   type="number"
-                  value={heightFt}
-                  onChange={(e) => {
-                    const ft = Math.max(0, Number(e.target.value));
-                    setHeight(Math.round(ft * 30.48 + heightIn * 2.54));
-                  }}
+                  value={ftText}
+                  onChange={(e) => setFtText(e.target.value)}
+                  min={0}
                   className="w-16 px-2 py-2 rounded-lg text-sm outline-none text-center"
                   style={{ background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)" }}
                 />
@@ -156,11 +181,8 @@ export default function ProfileView({ profile, onSave }: ProfileViewProps) {
               <div className="flex items-center gap-1">
                 <input
                   type="number"
-                  value={heightIn}
-                  onChange={(e) => {
-                    const inches = Math.max(0, Math.min(11, Number(e.target.value)));
-                    setHeight(Math.round(heightFt * 30.48 + inches * 2.54));
-                  }}
+                  value={inText}
+                  onChange={(e) => setInText(e.target.value)}
                   className="w-16 px-2 py-2 rounded-lg text-sm outline-none text-center"
                   style={{ background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)" }}
                   min={0}
@@ -172,8 +194,8 @@ export default function ProfileView({ profile, onSave }: ProfileViewProps) {
           ) : (
             <input
               type="number"
-              value={height}
-              onChange={(e) => setHeight(Math.max(1, Number(e.target.value)))}
+              value={heightText}
+              onChange={(e) => setHeightText(e.target.value)}
               className="w-full px-3 py-2 rounded-lg text-sm outline-none"
               style={{ background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)" }}
               min={1}
@@ -239,7 +261,7 @@ export default function ProfileView({ profile, onSave }: ProfileViewProps) {
         <div className="grid grid-cols-3 gap-3 text-center">
           <div>
             <div className="text-xl font-bold" style={{ color: "var(--ink)" }}>
-              {bmi}
+              {valid ? bmi : "—"}
             </div>
             <div className="text-[10px]" style={{ color: "var(--muted)" }}>
               BMI
@@ -255,12 +277,12 @@ export default function ProfileView({ profile, onSave }: ProfileViewProps) {
                       : "var(--success)",
               }}
             >
-              {bmiCategory(bmi)}
+              {valid ? bmiCategory(bmi) : ""}
             </div>
           </div>
           <div>
             <div className="text-xl font-bold" style={{ color: "var(--ink)" }}>
-              {tdee}
+              {valid ? tdee : "—"}
             </div>
             <div className="text-[10px]" style={{ color: "var(--muted)" }}>
               TDEE (cal)
@@ -268,7 +290,7 @@ export default function ProfileView({ profile, onSave }: ProfileViewProps) {
           </div>
           <div>
             <div className="text-xl font-bold" style={{ color: "var(--accent)" }}>
-              {suggested}
+              {valid ? suggested : "—"}
             </div>
             <div className="text-[10px]" style={{ color: "var(--muted)" }}>
               Suggested (cal)
@@ -279,7 +301,8 @@ export default function ProfileView({ profile, onSave }: ProfileViewProps) {
 
       <button
         onClick={handleSave}
-        className="w-full py-2.5 rounded-lg text-sm font-semibold cursor-pointer"
+        disabled={!valid}
+        className="w-full py-2.5 rounded-lg text-sm font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         style={{ background: "var(--accent)", color: "#fff", border: "none" }}
       >
         Save profile
