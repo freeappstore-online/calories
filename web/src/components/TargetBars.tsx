@@ -11,7 +11,7 @@ const ROWS: { key: keyof DailyGoals; label: string; unit: string; color: string 
 export default function TargetBars({ totals, goals }: { totals: DailyGoals; goals: DailyGoals }) {
   return (
     <div
-      className="rounded-xl px-4 py-3 space-y-2.5"
+      className="rounded-xl p-2 space-y-1.5"
       style={{ background: "var(--panel)", border: "1px solid var(--line)" }}
     >
       {ROWS.map((r) => {
@@ -25,38 +25,57 @@ export default function TargetBars({ totals, goals }: { totals: DailyGoals; goal
         const excess = over ? ((totals[r.key] - target) / scale) * 100 : 0;
         const targetPos = (target / scale) * 100;
         return (
-          <div key={r.key}>
-            <div className="flex items-baseline justify-between text-xs mb-1">
-              <span className="font-semibold" style={{ color: "var(--ink)" }}>
+          <div
+            key={r.key}
+            className="relative h-7 rounded-lg overflow-hidden"
+            style={{ background: "var(--line)" }}
+            role="meter"
+            aria-label={r.label}
+            aria-valuenow={value}
+            aria-valuemin={0}
+            aria-valuemax={target}
+          >
+            {/* Fill is a light tint of the macro colour so the text on top stays legible;
+                widths are computed from live totals */}
+            <div
+              className="absolute inset-y-0 left-0"
+              style={{
+                width: `${fill}%`,
+                background: `color-mix(in srgb, ${r.color} 35%, transparent)`,
+              }}
+            />
+            {/* Solid strip along the bottom shows the exact level without crossing the text */}
+            <div className="absolute bottom-0 left-0 h-[3px]" style={{ width: `${fill}%`, background: r.color }} />
+            {over && (
+              <>
+                <div
+                  className="absolute inset-y-0"
+                  style={{
+                    left: `${targetPos}%`,
+                    width: `${excess}%`,
+                    background: "color-mix(in srgb, var(--error) 40%, transparent)",
+                  }}
+                />
+                <div
+                  className="absolute bottom-0 h-[3px]"
+                  style={{ left: `${targetPos}%`, width: `${excess}%`, background: "var(--error)" }}
+                />
+                <div className="absolute inset-y-0 w-0.5" style={{ left: `${targetPos}%`, background: "var(--ink)" }} />
+              </>
+            )}
+            <div className="relative h-full flex items-center justify-between px-2.5 text-xs">
+              <span className="font-semibold truncate" style={{ color: "var(--ink)" }}>
                 {r.label}{" "}
-                <span className="font-normal" style={{ color: "var(--muted)" }}>
+                <span className="font-normal">
                   {value}{r.unit} / {target}{r.unit}
                 </span>
               </span>
-              <span className="font-semibold" style={{ color: over ? "var(--error)" : "var(--success)" }}>
+              <span
+                className="font-semibold shrink-0 ml-2"
+                style={{ color: over ? "var(--error)" : "var(--ink)" }}
+              >
                 {over ? `${-diff}${r.unit} over` : `${diff}${r.unit} left`}
               </span>
-            </div>
-            <div
-              className="relative h-2 rounded-full overflow-hidden"
-              style={{ background: "var(--line)" }}
-              role="meter"
-              aria-label={r.label}
-              aria-valuenow={value}
-              aria-valuemin={0}
-              aria-valuemax={target}
-            >
-              {/* widths are computed from live totals */}
-              <div className="absolute inset-y-0 left-0" style={{ width: `${fill}%`, background: r.color }} />
-              {over && (
-                <div
-                  className="absolute inset-y-0"
-                  style={{ left: `${targetPos}%`, width: `${excess}%`, background: "var(--error)" }}
-                />
-              )}
-              {over && (
-                <div className="absolute inset-y-0 w-0.5" style={{ left: `${targetPos}%`, background: "var(--ink)" }} />
-              )}
             </div>
           </div>
         );
