@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { FoodItem, MealType, FoodEntry } from "../data/types";
 import FoodBrowser from "./FoodBrowser";
 import FoodDetail from "./FoodDetail";
+import RecentFoods from "./RecentFoods";
 
 interface FoodSearchProps {
   meal: MealType;
@@ -135,7 +136,12 @@ export default function FoodSearch({ meal, onAdd, onClose }: FoodSearchProps) {
 
         {/* Search & browse list */}
         {!selectedFood && !quickAddMode && (
-          <FoodBrowser layout="list" onSelect={setSelectedFood} autoFocus />
+          <FoodBrowser
+            layout="list"
+            onSelect={setSelectedFood}
+            autoFocus
+            renderTop={(favorites) => <RecentFoods meal={meal} favorites={favorites} onAdd={onAdd} />}
+          />
         )}
       </div>
     </div>

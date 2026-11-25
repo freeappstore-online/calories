@@ -1,16 +1,36 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, type ReactNode } from "react";
 import { foods, categories } from "../data";
 import type { FoodItem } from "../data/types";
 import FoodIcon from "./FoodIcon";
+import { getFavorites, toggleFavorite } from "../lib/foodHistory";
 
 interface FoodBrowserProps {
   layout: "list" | "grid";
   onSelect: (food: FoodItem) => void;
   autoFocus?: boolean;
+  /** Rendered above the list while the search query is empty */
+  renderTop?: (favorites: string[]) => ReactNode;
+}
+
+function StarButton({ active, name, onToggle, className }: { active: boolean; name: string; onToggle: () => void; className?: string }) {
+  return (
+    <button
+      onClick={onToggle}
+      aria-label={`${active ? "Remove" : "Add"} ${name} ${active ? "from" : "to"} favorites`}
+      aria-pressed={active}
+      className={`w-8 h-8 flex items-center justify-center shrink-0 cursor-pointer ${className ?? ""}`}
+      style={{ background: "transparent", border: "none", color: active ? "#f59e0b" : "var(--muted)" }}
+    >
+      <svg className="w-4 h-4" viewBox="0 0 24 24" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.5a.56.56 0 011.04 0l2.13 5.11 5.52.44c.5.04.7.66.32.99l-4.2 3.6 1.28 5.38a.56.56 0 01-.84.61L12 16.76l-4.73 2.87a.56.56 0 01-.84-.61l1.28-5.38-4.2-3.6a.56.56 0 01.32-.99l5.52-.44 2.13-5.11z" />
+      </svg>
+    </button>
+  );
 }
 
 /** Search box, category pills and the illustrated food list/grid */
-export default function FoodBrowser({ layout, onSelect, autoFocus }: FoodBrowserProps) {
+export default function FoodBrowser({ layout, onSelect, autoFocus, renderTop }: FoodBrowserProps) {
+  const [favorites, setFavorites] = useState(getFavorites);
   const [query, setQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
@@ -86,10 +106,10 @@ export default function FoodBrowser({ layout, onSelect, autoFocus }: FoodBrowser
       ) : layout === "grid" ? (
         <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 px-4 pb-4">
           {filtered.map((food) => (
+            <div key={food.id} className="relative">
             <button
-              key={food.id}
               onClick={() => onSelect(food)}
-              className="flex flex-col items-center gap-1 p-2 rounded-xl text-center cursor-pointer"
+              className="w-full h-full flex flex-col items-center gap-1 p-2 rounded-xl text-center cursor-pointer"
               style={{ background: "var(--panel)", border: "1px solid var(--line)", color: "var(--ink)" }}
             >
               <FoodIcon image={food.image} size={56} />
@@ -98,16 +118,24 @@ export default function FoodBrowser({ layout, onSelect, autoFocus }: FoodBrowser
                 {food.calories} cal &middot; {food.protein}g P
               </div>
             </button>
+            <StarButton
+              className="absolute top-0 right-0"
+              active={favorites.includes(food.id)}
+              name={food.name}
+              onToggle={() => setFavorites(toggleFavorite(food.id))}
+            />
+            </div>
           ))}
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto px-4 pb-4">
+          {query.length === 0 && renderTop?.(favorites)}
           <div className="space-y-1">
             {filtered.map((food) => (
+              <div key={food.id} className="flex items-center">
               <button
-                key={food.id}
                 onClick={() => onSelect(food)}
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left cursor-pointer"
+                className="flex-1 min-w-0 flex items-center gap-3 px-3 py-2 rounded-lg text-left cursor-pointer"
                 style={{
                   background: "transparent",
                   border: "none",
@@ -137,6 +165,12 @@ export default function FoodBrowser({ layout, onSelect, autoFocus }: FoodBrowser
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
               </button>
+              <StarButton
+                active={favorites.includes(food.id)}
+                name={food.name}
+                onToggle={() => setFavorites(toggleFavorite(food.id))}
+              />
+              </div>
             ))}
           </div>
         </div>
