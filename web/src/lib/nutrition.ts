@@ -1,4 +1,6 @@
-import type { FoodItem, FoodEntry, UserProfile, ActivityLevel } from "../data/types";
+import { MICRO_DEFS } from "../data/types";
+import type { FoodItem, FoodEntry, MicroKey, UserProfile, ActivityLevel } from "../data/types";
+import { findFood } from "./customFoods";
 
 /** Scale a food's nutrition by portion (grams) */
 export function scaleNutrition(
@@ -14,6 +16,56 @@ export function scaleNutrition(
     fiber: Math.round(food.fiber * factor * 10) / 10,
     sugar: Math.round(food.sugar * factor * 10) / 10,
   };
+}
+
+/** Micronutrients of a portion; null stays null (unknown) */
+export function scaleMicros(food: FoodItem, portionGrams: number): Record<MicroKey, number | null> {
+  const out = {} as Record<MicroKey, number | null>;
+  for (const { key } of MICRO_DEFS) {
+    const per100 = food[key];
+    const dp = key === "vitaminB12" || key === "vitaminD" ? 100 : 10;
+    out[key] = per100 === null ? null : Math.round(per100 * (portionGrams / 100) * dp) / dp;
+  }
+  return out;
+}
+
+/** Amount for display: 0 dp from 10, 1 dp from 1, else 2 dp */
+export function formatMicro(raw: number): number {
+  return raw >= 10 ? Math.round(raw) : raw >= 1 ? Math.round(raw * 10) / 10 : Math.round(raw * 100) / 100;
+}
+
+export interface MicroTotal {
+  /** Sum of the known values only */
+  total: number;
+  coveredEntries: number;
+  /** Entries with no value for this nutrient (not counted in total) */
+  unknownEntries: number;
+}
+
+/**
+ * Per-nutrient totals. Entries logged before micros were tracked are derived from
+ * the food by id and portion; quick-add entries and deleted foods count as unknown.
+ */
+export function sumMicros(entries: FoodEntry[]): Record<MicroKey, MicroTotal> {
+  const out = {} as Record<MicroKey, MicroTotal>;
+  for (const { key } of MICRO_DEFS) out[key] = { total: 0, coveredEntries: 0, unknownEntries: 0 };
+  for (const e of entries) {
+    let micros = e.micros;
+    if (!micros && e.foodId && e.portionGrams > 0) {
+      const food = findFood(e.foodId);
+      if (food) micros = scaleMicros(food, e.portionGrams);
+    }
+    for (const { key } of MICRO_DEFS) {
+      const v = micros?.[key];
+      if (typeof v === "number") {
+        out[key].total += v;
+        out[key].coveredEntries++;
+      } else {
+        out[key].unknownEntries++;
+      }
+    }
+  }
+  return out;
 }
 
 /** Sum totals from entries */

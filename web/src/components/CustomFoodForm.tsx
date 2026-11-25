@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { CustomFood } from "../data/types";
 import { CUSTOM_IMAGE, newCustomId, saveCustomFood } from "../lib/customFoods";
-import { MICROS } from "./FoodDetail";
+import { MICRO_DEFS } from "../data/types";
 import Modal from "./Modal";
 
 interface CustomFoodFormProps {
@@ -45,7 +45,7 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
     if (calories.error || calories.value === null) return setError("Calories are required and must be a number, 0 or more.");
 
     const perServing: Record<string, number | null> = { calories: calories.value };
-    for (const key of [...MACROS.map((m) => m.key), ...MICROS.map((m) => m.key)]) {
+    for (const key of [...MACROS.map((m) => m.key), ...MICRO_DEFS.map((m) => m.key)]) {
       const parsed = parseField(get(key));
       if (parsed.error) return setError("Nutrient values must be numbers, 0 or more.");
       perServing[key] = parsed.value;
@@ -155,7 +155,7 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
           <details>
             <summary className="text-xs cursor-pointer" style={{ color: "var(--muted)" }}>More nutrients (optional)</summary>
             <div className="grid grid-cols-2 gap-2 mt-2">
-              {MICROS.map((m) => field(m.key, `${m.label} (${m.unit})`))}
+              {MICRO_DEFS.map((m) => field(m.key, `${m.label} (${m.unit})`))}
             </div>
           </details>
 

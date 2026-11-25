@@ -32,6 +32,35 @@ export interface FoodItem {
   vitaminB12: number | null; // µg
 }
 
+/** Micronutrients tracked per food and per entry */
+export type MicroKey =
+  | "satFat"
+  | "cholesterol"
+  | "sodium"
+  | "potassium"
+  | "calcium"
+  | "iron"
+  | "magnesium"
+  | "vitaminA"
+  | "vitaminC"
+  | "vitaminD"
+  | "vitaminB12";
+
+/** Display order, unit and FDA Daily Value; limit nutrients are to be kept under their DV */
+export const MICRO_DEFS: { key: MicroKey; label: string; unit: string; dv: number; limit?: boolean }[] = [
+  { key: "satFat", label: "Saturated fat", unit: "g", dv: 20, limit: true },
+  { key: "cholesterol", label: "Cholesterol", unit: "mg", dv: 300, limit: true },
+  { key: "sodium", label: "Sodium", unit: "mg", dv: 2300, limit: true },
+  { key: "potassium", label: "Potassium", unit: "mg", dv: 4700 },
+  { key: "calcium", label: "Calcium", unit: "mg", dv: 1300 },
+  { key: "iron", label: "Iron", unit: "mg", dv: 18 },
+  { key: "magnesium", label: "Magnesium", unit: "mg", dv: 420 },
+  { key: "vitaminA", label: "Vitamin A", unit: "µg", dv: 900 },
+  { key: "vitaminC", label: "Vitamin C", unit: "mg", dv: 90 },
+  { key: "vitaminD", label: "Vitamin D", unit: "µg", dv: 20 },
+  { key: "vitaminB12", label: "Vitamin B12", unit: "µg", dv: 2.4 },
+];
+
 /** A user-defined food: nutrition per 100 g, id is "custom:<uuid>" */
 export interface CustomFood extends FoodItem {
   category: "custom";
@@ -69,6 +98,8 @@ export interface FoodEntry {
   fat: number;
   fiber: number;
   sugar: number;
+  /** Micronutrients for this portion; null/absent = unknown. Absent on entries logged before they were tracked. */
+  micros?: Partial<Record<MicroKey, number | null>>;
 }
 
 export interface DailyLog {

@@ -1,7 +1,7 @@
 import { findFood, servingsFor } from "./customFoods";
 import type { FoodEntry, MealType } from "../data/types";
 import { getAllLogs } from "./storage";
-import { scaleNutrition } from "./nutrition";
+import { scaleMicros, scaleNutrition } from "./nutrition";
 
 const FAVORITES_KEY = "calories_favorites";
 const FREQUENT_DAYS = 30;
@@ -96,7 +96,7 @@ export function getFavoriteTemplates(favorites: string[]): FoodTemplate[] {
     const food = findFood(id);
     if (!food) continue;
     const portionGrams = servingsFor(food)?.[0]?.grams ?? 100;
-    result.push({ foodId: id, name: food.name, portionGrams, ...scaleNutrition(food, portionGrams) });
+    result.push({ foodId: id, name: food.name, portionGrams, ...scaleNutrition(food, portionGrams), micros: scaleMicros(food, portionGrams) });
   }
   return result;
 }

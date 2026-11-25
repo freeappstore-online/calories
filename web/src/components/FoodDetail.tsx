@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { deleteCustomFood, servingsFor } from "../lib/customFoods";
+import { MICRO_DEFS } from "../data/types";
 import type { FoodItem, MealType, FoodEntry } from "../data/types";
-import { scaleNutrition } from "../lib/nutrition";
+import { formatMicro, scaleMicros, scaleNutrition } from "../lib/nutrition";
 import FoodIcon from "./FoodIcon";
 
 const MEALS: { id: MealType; label: string }[] = [
@@ -9,21 +10,6 @@ const MEALS: { id: MealType; label: string }[] = [
   { id: "lunch", label: "Lunch" },
   { id: "dinner", label: "Dinner" },
   { id: "snacks", label: "Snacks" },
-];
-
-/** Micronutrients shown in the facts list, with FDA Daily Values */
-export const MICROS: { key: keyof FoodItem; label: string; unit: string; dv?: number }[] = [
-  { key: "satFat", label: "Saturated fat", unit: "g", dv: 20 },
-  { key: "cholesterol", label: "Cholesterol", unit: "mg", dv: 300 },
-  { key: "sodium", label: "Sodium", unit: "mg", dv: 2300 },
-  { key: "potassium", label: "Potassium", unit: "mg", dv: 4700 },
-  { key: "calcium", label: "Calcium", unit: "mg", dv: 1300 },
-  { key: "iron", label: "Iron", unit: "mg", dv: 18 },
-  { key: "magnesium", label: "Magnesium", unit: "mg", dv: 420 },
-  { key: "vitaminA", label: "Vitamin A", unit: "µg", dv: 900 },
-  { key: "vitaminC", label: "Vitamin C", unit: "mg", dv: 90 },
-  { key: "vitaminD", label: "Vitamin D", unit: "µg", dv: 20 },
-  { key: "vitaminB12", label: "Vitamin B12", unit: "µg", dv: 2.4 },
 ];
 
 interface FoodDetailProps {
@@ -56,6 +42,7 @@ export default function FoodDetail({ food, meal, onMealChange, onAdd, onDeleted 
       meal,
       portionGrams,
       ...preview,
+      micros: scaleMicros(food, portionGrams),
     });
   };
 
@@ -167,10 +154,9 @@ export default function FoodDetail({ food, meal, onMealChange, onAdd, onDeleted 
           <span>Nutrient</span>
           <span>Amount &middot; % Daily Value</span>
         </div>
-        {MICROS.map((m) => {
-          const per100 = food[m.key] as number | null;
-          const raw = per100 === null ? null : per100 * factor;
-          const amount = raw === null ? null : raw >= 10 ? Math.round(raw) : raw >= 1 ? Math.round(raw * 10) / 10 : Math.round(raw * 100) / 100;
+        {MICRO_DEFS.map((m) => {
+          const per100 = food[m.key];
+          const amount = per100 === null ? null : formatMicro(per100 * factor);
           return (
             <div
               key={m.key}
@@ -180,7 +166,7 @@ export default function FoodDetail({ food, meal, onMealChange, onAdd, onDeleted 
               <span>{m.label}</span>
               <span>
                 {amount === null ? "—" : `${amount}${m.unit}`}
-                {amount !== null && m.dv && (
+                {amount !== null && (
                   <span className="inline-block w-10 text-right" style={{ color: "var(--muted)" }}>
                     {Math.round((amount / m.dv) * 100)}%
                   </span>

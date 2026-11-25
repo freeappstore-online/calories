@@ -9,8 +9,6 @@ export function defaultMealForTime(date: Date): MealType {
   return "snacks";
 }
 
-type WithMicros = { micros?: Record<string, number | null> };
-
 /** Rescale a logged entry to a new portion, rounding like scaleNutrition */
 export function rescaleEntry(entry: FoodEntry, newGrams: number): FoodEntry {
   const factor = newGrams / entry.portionGrams;
@@ -25,11 +23,9 @@ export function rescaleEntry(entry: FoodEntry, newGrams: number): FoodEntry {
     fiber: r1(entry.fiber),
     sugar: r1(entry.sugar),
   };
-  // micros arrives with the micronutrient issue; scale it when present
-  const micros = (entry as WithMicros).micros;
-  if (micros) {
-    (next as WithMicros).micros = Object.fromEntries(
-      Object.entries(micros).map(([k, v]) => [k, typeof v === "number" ? Math.round(v * factor * 100) / 100 : v]),
+  if (entry.micros) {
+    next.micros = Object.fromEntries(
+      Object.entries(entry.micros).map(([k, v]) => [k, typeof v === "number" ? Math.round(v * factor * 100) / 100 : v]),
     );
   }
   return next;

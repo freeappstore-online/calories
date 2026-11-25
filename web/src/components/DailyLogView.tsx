@@ -6,6 +6,7 @@ import ProgressRing from "./ProgressRing";
 import FoodSearch from "./FoodSearch";
 import FoodIcon from "./FoodIcon";
 import Modal from "./Modal";
+import MicronutrientCard from "./MicronutrientCard";
 import EditEntryModal from "./EditEntryModal";
 import { defaultMealForTime } from "../lib/entryEdit";
 import { imageFor } from "../lib/customFoods";
@@ -187,6 +188,8 @@ export default function DailyLogView({
           </span>
         </div>
       </div>
+
+      <MicronutrientCard entries={log.entries} />
 
       {/* Meal tabs */}
       <div className="flex gap-1 overflow-x-auto">
