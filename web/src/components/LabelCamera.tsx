@@ -1,17 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Consensus, FrameGate, FramePool, frameRead, type ConsensusResult, type FieldReport, type VoteField } from "../lib/consensus";
 import { parseLabel, type LabelField } from "../lib/labelParser";
 import { fitCanvas, openLiveEngine } from "../lib/labelScanner";
-import { keyValues, readyToCapture, thumbnail, type LiveFrame } from "../lib/liveScan";
-import { energyAgrees, KEY_FIELDS } from "../lib/ocr/chain";
+import { frameDifference, measureSharpness, thumbnail } from "../lib/liveScan";
+import { KEY_FIELDS } from "../lib/ocr/chain";
 import { ENGINES } from "../lib/ocr/engines";
 import { highlightsOf, type Highlight } from "../lib/ocr/provenance";
-import { ocrText, type EngineId, type OcrLine } from "../lib/ocr/types";
+import { ocrConfidence, ocrText, type EngineId, type OcrLine } from "../lib/ocr/types";
 import LabelOverlay, { fieldColor } from "./LabelOverlay";
 import Modal from "./Modal";
 
 interface LabelCameraProps {
-  /** A photo of the label: the camera's full-resolution frame, or a file the user chose */
-  onPhoto: (photo: HTMLCanvasElement | File) => void;
+  /** A photo of the label: the best full-resolution frame seen (with the values the frames settled on), or a file the user chose */
+  onPhoto: (photo: HTMLCanvasElement | File, consensus?: ConsensusResult) => void;
   onClose: () => void;
 }
 
@@ -21,6 +22,11 @@ type CameraState = "starting" | "live" | "paused" | "denied" | "unavailable";
 const LIVE_SIDE = 1280;
 /** Least time between live reads: about 1.5 a second at most, and never two at once */
 const LIVE_INTERVAL_MS = 650;
+/** Wait before looking at the next frame after one that was too blurry or moving to read */
+const SKIP_INTERVAL_MS = 120;
+
+/** Sharp frames after which, if the four values still have not settled, the hint points at the shutter */
+const SLOW_AFTER_FRAMES = 12;
 
 const KEY_LABELS: Record<string, string> = { calories: "Calories", protein: "Protein", carbs: "Carbs", fat: "Fat" };
 
@@ -37,15 +43,19 @@ export default function LabelCamera({ onPhoto, onClose }: LabelCameraProps) {
   const stream = useRef<MediaStream | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [state, setState] = useState<CameraState>("starting");
-  const [auto, setAuto] = useState(false);
+  const [auto, setAuto] = useState(true);
   const autoRef = useRef(auto);
   autoRef.current = auto;
-  const [live, setLive] = useState<{ lines: OcrLine[]; width: number; height: number; highlights: Highlight[]; values: Partial<Record<LabelField, number>>; engine: EngineId } | null>(null);
+  const [live, setLive] = useState<{ lines: OcrLine[]; width: number; height: number; highlights: Highlight[]; engine: EngineId } | null>(null);
+  // The votes so far: what each field reads as, how many frames agree, and why the last frame was skipped
+  const [votes, setVotes] = useState<{ fields: Partial<Record<VoteField, FieldReport>>; frames: number; skipped: number; reason?: "blurry" | "moving" }>({ fields: {}, frames: 0, skipped: 0 });
+  const session = useRef<{ consensus: Consensus; pool: FramePool<HTMLCanvasElement> } | null>(null);
   const [liveOff, setLiveOff] = useState<string | null>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const done = useRef(false);
   const frameBox = useRef<HTMLDivElement>(null);
   const reads = useRef(0);
+  const examined = useRef(0);
 
   const stop = useCallback(() => {
     stream.current?.getTracks().forEach((t) => t.stop());
@@ -97,9 +107,12 @@ export default function LabelCamera({ onPhoto, onClose }: LabelCameraProps) {
     const v = video.current;
     if (!v || !v.videoWidth || done.current) return;
     done.current = true;
-    const canvas = fitCanvas(v, v.videoWidth, v.videoHeight);
+    // The best frame seen so far (not necessarily this one), with the values the frames agreed on
+    const result = session.current?.consensus.result();
+    const best = result && session.current?.pool.best(result);
+    const canvas = best ?? fitCanvas(v, v.videoWidth, v.videoHeight);
     stop();
-    onPhoto(canvas);
+    onPhoto(canvas, result && (Object.keys(result.values).length > 0 || result.servingGrams !== undefined) ? result : undefined);
   }, [onPhoto, stop]);
   const captureRef = useRef(capture);
   captureRef.current = capture;
@@ -109,7 +122,13 @@ export default function LabelCamera({ onPhoto, onClose }: LabelCameraProps) {
     if (state !== "live") return;
     let cancelled = false;
     let close: (() => Promise<void>) | undefined;
-    const frames: LiveFrame[] = [];
+    const consensus = new Consensus();
+    const pool = new FramePool<HTMLCanvasElement>();
+    const gate = new FrameGate();
+    session.current = { consensus, pool };
+    setVotes({ fields: {}, frames: 0, skipped: 0 });
+    let skipped = 0;
+    let previous: Uint8Array | undefined;
     void (async () => {
       let opened;
       try {
@@ -133,16 +152,38 @@ export default function LabelCamera({ onPhoto, onClose }: LabelCameraProps) {
         frame.width = Math.round(v.videoWidth * scale);
         frame.height = Math.round(v.videoHeight * scale);
         frame.getContext("2d")!.drawImage(v, 0, 0, frame.width, frame.height);
+        // Blurry or moving frames do not vote (and are not read at all, which keeps the loop fast)
+        const sharpness = measureSharpness(frame);
+        const thumb = thumbnail(frame);
+        const verdict = gate.check(sharpness, previous ? frameDifference(previous, thumb) : 0);
+        previous = thumb;
+        if (frameBox.current) {
+          frameBox.current.dataset.sharpness = String(Math.round(sharpness));
+          frameBox.current.dataset.examined = String(++examined.current);
+        }
+        if (!verdict.pass) {
+          skipped++;
+          setVotes((s) => ({ ...s, skipped, reason: verdict.reason }));
+          // Checking a frame is cheap (no read), so look again soon: a steady moment may be brief
+          await sleep(SKIP_INTERVAL_MS);
+          continue;
+        }
+        // A full-resolution copy from the same moment, kept if this turns out to be among the best frames
+        const full = fitCanvas(v, v.videoWidth, v.videoHeight);
         try {
           const result = await runtime.recognise(frame, undefined, { fast: true });
           if (cancelled) break;
           const scan = parseLabel(ocrText(result));
-          const values = keyValues(scan);
           if (frameBox.current) frameBox.current.dataset.reads = String(++reads.current);
-          setLive({ lines: result.lines, width: result.width, height: result.height, highlights: highlightsOf(scan, result.lines).filter((h) => KEY_FIELDS.includes(h.field as LabelField)), values, engine });
-          frames.push({ values, thumb: thumbnail(frame) });
-          if (frames.length > 4) frames.shift();
-          if (autoRef.current && readyToCapture(frames)) {
+          setLive({ lines: result.lines, width: result.width, height: result.height, highlights: highlightsOf(scan, result.lines).filter((h) => KEY_FIELDS.includes(h.field as LabelField)), engine });
+          const read = frameRead(scan, ocrConfidence(result), verdict.quality);
+          if (Object.keys(read.values).length > 0) {
+            consensus.add(read);
+            pool.add(full, read);
+          }
+        
+          setVotes({ fields: consensus.fields(), frames: consensus.frames, skipped, reason: undefined });
+          if (autoRef.current && consensus.keysSettled()) {
             captureRef.current();
             break;
           }
@@ -205,7 +246,8 @@ export default function LabelCamera({ onPhoto, onClose }: LabelCameraProps) {
               className="absolute inset-0 w-full h-full"
               onLoadedMetadata={(e) => setSize({ w: e.currentTarget.videoWidth, h: e.currentTarget.videoHeight })}
             />
-            {live && state === "live" && <LabelOverlay width={live.width} height={live.height} lines={live.lines} highlights={live.highlights} />}
+            {/* Boxes belong to the frame that was read: hidden while the picture is blurred or moving, when they would sit off the text */}
+            {live && state === "live" && !votes.reason && <LabelOverlay width={live.width} height={live.height} lines={live.lines} highlights={live.highlights} />}
           </div>
           {/* Framing guide over the visible area, between the top and bottom controls */}
           <div
@@ -239,7 +281,14 @@ export default function LabelCamera({ onPhoto, onClose }: LabelCameraProps) {
         <p className="text-[0.75rem] leading-snug rounded-xl px-3 py-2 max-w-[80%]" style={glass}>
           {unavailable
             ? "Scan label"
-            : liveOff ?? (live ? `Live read by ${ENGINES[live.engine].name}. Fit the nutrition table inside the frame.` : "Fit the nutrition table inside the frame.")}
+            : liveOff ??
+              (votes.reason
+                ? votes.reason === "blurry" ? "Not sharp enough, hold steady and let the camera focus." : "Moving, hold the phone steady."
+                : live && votes.frames >= SLOW_AFTER_FRAMES
+                  ? "This label is hard to read live. Tap the shutter to read the best frame."
+                  : live
+                  ? `${ENGINES[live.engine].name} is reading ${votes.frames} sharp frame${votes.frames === 1 ? "" : "s"}. Fit the nutrition table inside the frame.`
+                  : "Fit the nutrition table inside the frame.")}
         </p>
         <button
           onClick={onClose}
@@ -264,20 +313,25 @@ export default function LabelCamera({ onPhoto, onClose }: LabelCameraProps) {
         {!unavailable && (
           <div className="flex items-center justify-between gap-2" aria-label="Values the camera can read">
             {KEY_FIELDS.map((f) => {
-              // Values that do not add up (calories far from 4/4/9 of the macros) contain a misread digit: not shown as read
-              const value = live && energyAgrees(live.values) ? live.values[f] : undefined;
+              // A chip fills in once the frames agree on the value; before that it only says it is still reading
+              const report = votes.fields[f];
               const color = fieldColor(f);
-              const read = value !== undefined;
+              const read = report?.settled === true;
+              const unsure = !read && report?.unstable === true;
               return (
                 <span
                   key={f}
                   data-key={f}
                   data-read={read}
-                  className="flex-1 text-center rounded-lg px-1 py-1 text-[0.6875rem] font-semibold"
-                  style={read ? { background: color, color: "#fff", border: `1px solid ${color}` } : glass}
+                  data-agree={read ? `${report.agree}/${report.reads}` : undefined}
+                  className={`flex-1 text-center rounded-lg px-1 py-1 text-[0.6875rem] font-semibold leading-tight ${report && !read && !unsure ? "animate-pulse" : ""}`}
+                  style={read ? { background: color, color: "#fff", border: `1px solid ${color}` } : unsure ? { ...glass, border: "1px dashed #fbbf24", color: "#fbbf24" } : glass}
                 >
                   {KEY_LABELS[f]}
-                  {read ? ` ${Math.round(value)}` : ""}
+                  {read ? ` ${Math.round(report.value as number)}` : ""}
+                  <span className="block text-[0.5625rem] font-medium opacity-80">
+                    {read ? `${report.agree}/${report.reads}` : unsure ? "unsure" : report ? "reading" : " "}
+                  </span>
                 </span>
               );
             })}
@@ -312,7 +366,7 @@ export default function LabelCamera({ onPhoto, onClose }: LabelCameraProps) {
         </div>
         {!unavailable && (
           <p className="text-[0.625rem] text-center" style={{ color: "rgba(255,255,255,0.75)" }}>
-            Auto takes the photo when all four values are readable and steady.
+            Auto takes the best frame once the four values have settled. The shutter takes it now.
           </p>
         )}
         <input

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { CustomFood } from "../data/types";
 import { buildCustomFood, isValidGrams, MAX_CUSTOM_VALUE, MAX_GRAMS, MIN_GRAMS, saveCustomFood } from "../lib/customFoods";
 import { MICRO_DEFS } from "../data/types";
+import { mergeConsensus, type ConsensusResult } from "../lib/consensus";
 import type { SourceKey } from "../lib/labelParser";
 import { OPEN_LABEL_SCANNER_EVENT, photoToCanvas, scanCanvas, useEngines, type ScanProgress } from "../lib/labelScanner";
 import { bestAttempt, nextEngine, type Attempt } from "../lib/ocr/chain";
@@ -48,7 +49,7 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
   const [scanned, setScanned] = useState<Set<string>>(new Set());
   const [scanNote, setScanNote] = useState<{ text: string; error: boolean } | null>(null);
   // What the last scan saw: the photo, every model's attempt, and the one whose values are in the form
-  const [review, setReview] = useState<{ canvas: HTMLCanvasElement; url: string; attempts: Attempt[]; shown: number } | null>(null);
+  const [review, setReview] = useState<{ canvas: HTMLCanvasElement; url: string; attempts: Attempt[]; shown: number; consensus?: ConsensusResult } | null>(null);
   const [selected, setSelected] = useState<SourceKey | null>(null);
   const reviewUrl = useRef<string | null>(null);
   useEffect(() => () => {
@@ -62,8 +63,9 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
   const focusField = (key: string) => scanned.has(key) && setSelected(key as SourceKey);
 
   /** Put one attempt's values in the form (replacing what an earlier attempt filled, never what was typed by hand) */
-  const apply = (attempt: Attempt, attempts: Attempt[]) => {
-    const scan = attempt.scan;
+  const apply = (attempt: Attempt, attempts: Attempt[], consensus?: ConsensusResult) => {
+    // What the live camera's frames settled on wins over this one read
+    const scan = attempt.scan && mergeConsensus(attempt.scan, consensus);
     if (!scan) return;
     const count = Object.keys(scan.values).length;
     const how = `Read by ${ENGINES[attempt.engine].name} in ${Math.max(1, Math.round(attempt.ms / 1000))} s.`;
@@ -85,24 +87,24 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
     // No model read all four key values cleanly: this is the best of what they read
     const weak = attempts.length > 1 && !attempt.good && !nextEngine(new Set(readyEngines()), attempts) ? "No model read the whole label cleanly; these are the best reading. " : "";
     setScanNote({
-      text: `Filled ${count} nutrient${count === 1 ? "" : "s"} from the label (outlined). ${how} ${weak}Check them against the label before saving. ${scan.warnings.join(" ")}`.trim(),
+      text: `Filled ${count} nutrient${count === 1 ? "" : "s"} from the label (outlined). ${consensus ? `${Object.keys(consensus.values).length} settled over ${consensus.frames} camera frames. ` : ""}${how} ${weak}Check them against the label before saving. ${scan.warnings.join(" ")}`.trim(),
       error: scan.warnings.length > 0 || weak !== "",
     });
   };
 
-  const showReview = (canvas: HTMLCanvasElement, attempts: Attempt[], shown: number, url?: string) => {
+  const showReview = (canvas: HTMLCanvasElement, attempts: Attempt[], shown: number, url?: string, consensus?: ConsensusResult) => {
     if (url) {
       if (reviewUrl.current) URL.revokeObjectURL(reviewUrl.current);
       reviewUrl.current = url;
     }
-    setReview({ canvas, url: reviewUrl.current!, attempts, shown });
+    setReview({ canvas, url: reviewUrl.current!, attempts, shown, consensus });
     setSelected(null);
     const attempt = attempts[shown];
-    if (attempt) apply(attempt, attempts);
+    if (attempt) apply(attempt, attempts, consensus);
   };
 
-  /** Read a photo with the downloaded models in order, or (continuing a scan) with the next one */
-  const runScan = async (canvas: HTMLCanvasElement, previous?: Attempt[]) => {
+  /** Read a photo with the downloaded models in order, or (continuing a scan) with the next one; `consensus` is what the live camera settled on */
+  const runScan = async (canvas: HTMLCanvasElement, previous?: Attempt[], consensus?: ConsensusResult) => {
     setScanning({ engine: readyEngines()[0] ?? "tesseract", fraction: 0 });
     setScanNote(null);
     setError(null);
@@ -110,7 +112,7 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
       const attempts = await scanCanvas(canvas, setScanning, { previous, single: !!previous });
       const url = previous ? undefined : URL.createObjectURL(await new Promise<Blob>((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error("Could not keep the photo."))), "image/jpeg", 0.85)));
       const best = previous ? attempts.length - 1 : attempts.indexOf(bestAttempt(attempts)!);
-      showReview(canvas, attempts, best, url);
+      showReview(canvas, attempts, best, url, consensus);
     } catch (e) {
       setScanNote({ text: e instanceof Error ? e.message : "Could not scan the label.", error: true });
     } finally {
@@ -118,16 +120,16 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
     }
   };
 
-  const handlePhoto = async (photo: HTMLCanvasElement | File) => {
+  const handlePhoto = async (photo: HTMLCanvasElement | File, consensus?: ConsensusResult) => {
     setCameraOpen(false);
     try {
-      await runScan(photo instanceof HTMLCanvasElement ? photo : await photoToCanvas(photo));
+      await runScan(photo instanceof HTMLCanvasElement ? photo : await photoToCanvas(photo), undefined, consensus);
     } catch (e) {
       setScanNote({ text: e instanceof Error ? e.message : "Could not scan the label.", error: true });
     }
   };
 
-  const tryNext = () => review && void runScan(review.canvas, review.attempts);
+  const tryNext = () => review && void runScan(review.canvas, review.attempts, review.consensus);
 
   // The scan lab keeps the photos for checking the models later; a front photo also names the food
   const [front, setFront] = useState<Blob | null>(null);
@@ -262,7 +264,7 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
                       aria-pressed={i === review.shown}
                       data-confidence={a.confidence === null ? "" : Math.round(a.confidence)}
                       data-good={a.good}
-                      onClick={() => showReview(review.canvas, review.attempts, i)}
+                      onClick={() => showReview(review.canvas, review.attempts, i, undefined, review.consensus)}
                       className="px-2.5 py-1 rounded-full text-[0.6875rem] font-semibold cursor-pointer"
                       style={{
                         background: i === review.shown ? "var(--accent)" : "var(--paper)",
@@ -304,7 +306,7 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
             </div>
           )}
           {lab && <p role="status" data-testid="lab-note" className="text-xs" style={{ color: lab.error ? "var(--error)" : "var(--muted)" }}>{lab.text}</p>}
-          {cameraOpen && <LabelCamera onPhoto={(p) => void handlePhoto(p)} onClose={() => setCameraOpen(false)} />}
+          {cameraOpen && <LabelCamera onPhoto={(p, c) => void handlePhoto(p, c)} onClose={() => setCameraOpen(false)} />}
           <label className="block">
             <span className="text-[0.6875rem] font-medium block mb-0.5" style={{ color: "var(--muted)" }}>Name</span>
             <input
