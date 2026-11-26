@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { imageFor } from "../lib/customFoods";
+import { formatGrams, imageFor } from "../lib/customFoods";
 import type { FoodEntry, MealType } from "../data/types";
 import {
   getFavoriteTemplates,
@@ -50,7 +50,7 @@ export default function RecentFoods({ meal, favorites, onAdd }: RecentFoodsProps
                 <button
                   key={t.foodId}
                   onClick={() => onAdd(templateToEntry(t, meal))}
-                  aria-label={`Add ${t.name}, ${Math.round(t.portionGrams)} g`}
+                  aria-label={`Add ${t.name}, ${formatGrams(t.portionGrams)}`}
                   className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left cursor-pointer"
                   style={{ background: "var(--panel)", border: "1px solid var(--line)", color: "var(--ink)" }}
                 >
@@ -58,7 +58,7 @@ export default function RecentFoods({ meal, favorites, onAdd }: RecentFoodsProps
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium truncate">{t.name}</div>
                     <div className="text-[0.6875rem]" style={{ color: "var(--muted)" }}>
-                      {Math.round(t.portionGrams)} g &middot; {Math.round(t.calories)} cal
+                      {formatGrams(t.portionGrams)} &middot; {Math.round(t.calories)} cal
                     </div>
                   </div>
                   <svg

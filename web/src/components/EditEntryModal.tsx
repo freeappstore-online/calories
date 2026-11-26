@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { FoodEntry, MealType } from "../data/types";
-import { servingSizes } from "../data";
+import { findFood, formatGrams, isValidGrams, MAX_GRAMS, MIN_GRAMS, servingsFor } from "../lib/customFoods";
 import { rescaleEntry } from "../lib/entryEdit";
 import Modal from "./Modal";
 import { FAT_COLOR } from "../lib/colors";
@@ -23,9 +23,11 @@ interface EditEntryModalProps {
 /** Edit a logged entry: portion (food entries) or name/macros (quick add), plus meal */
 export default function EditEntryModal({ entry, onSave, onClose }: EditEntryModalProps) {
   const isFood = entry.foodId !== null && entry.portionGrams > 0;
-  const servings = isFood ? servingSizes[entry.foodId!] : undefined;
+  // Library and custom foods alike
+  const food = isFood ? findFood(entry.foodId!) : undefined;
+  const servings = food ? servingsFor(food) : undefined;
   const [meal, setMeal] = useState<MealType>(entry.meal);
-  const [gramsText, setGramsText] = useState(String(entry.portionGrams));
+  const [gramsText, setGramsText] = useState(String(Math.round(entry.portionGrams * 10) / 10));
   const [name, setName] = useState(entry.name);
   const [quick, setQuick] = useState({
     calories: String(entry.calories),
@@ -35,7 +37,7 @@ export default function EditEntryModal({ entry, onSave, onClose }: EditEntryModa
   });
 
   const grams = Number(gramsText);
-  const gramsValid = gramsText.trim() !== "" && Number.isFinite(grams) && grams >= 1;
+  const gramsValid = gramsText.trim() !== "" && Number.isFinite(grams) && isValidGrams(grams);
   const quickNums = {
     calories: Number(quick.calories),
     protein: Number(quick.protein || 0),
@@ -94,7 +96,7 @@ export default function EditEntryModal({ entry, onSave, onClose }: EditEntryModa
                       border: `1px solid ${grams === s.grams ? "var(--accent)" : "var(--line)"}`,
                     }}
                   >
-                    {s.label} ({Math.round(s.grams)}g)
+                    {s.label} ({formatGrams(s.grams)})
                   </button>
                 ))}
               </div>
@@ -103,7 +105,9 @@ export default function EditEntryModal({ entry, onSave, onClose }: EditEntryModa
               Amount (grams)
               <input
                 type="number"
-                min={1}
+                min={MIN_GRAMS}
+                max={MAX_GRAMS}
+                step="any"
                 value={gramsText}
                 onChange={(e) => setGramsText(e.target.value)}
                 className="w-full mt-1 px-3 py-2 rounded-lg text-sm outline-none"
