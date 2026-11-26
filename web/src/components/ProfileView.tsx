@@ -1,7 +1,9 @@
 import { useState } from "react";
 import type { UserProfile, ActivityLevel, WeightGoal, Sex, TargetOverrides } from "../data/types";
 import BackupSection from "./BackupSection";
+import AiAccessSettings from "./AiAccessSettings";
 import LabelScannerSettings from "./LabelScannerSettings";
+import type { useAiAccess } from "../lib/useAiAccess";
 import PortionStepsSettings from "./PortionStepsSettings";
 import AppearanceSettings from "./AppearanceSettings";
 import TargetsSection from "./TargetsSection";
@@ -12,6 +14,7 @@ interface ProfileViewProps {
   onSave: (profile: UserProfile) => void;
   overrides: TargetOverrides;
   onOverridesChange: (overrides: TargetOverrides) => void;
+  aiAccess: ReturnType<typeof useAiAccess>;
 }
 
 const ACTIVITY_LABELS: Record<ActivityLevel, string> = {
@@ -30,7 +33,7 @@ const GOAL_LABELS: Record<WeightGoal, string> = {
 
 const LB_PER_KG = 2.20462;
 
-export default function ProfileView({ profile, onSave, overrides, onOverridesChange }: ProfileViewProps) {
+export default function ProfileView({ profile, onSave, overrides, onOverridesChange, aiAccess }: ProfileViewProps) {
   // Raw text state so fields can be cleared and retyped; parsed only when computing/saving.
   const initialInches = Math.round((profile?.height ?? 170) / 2.54);
   const [ageText, setAgeText] = useState(String(profile?.age ?? 30));
@@ -328,6 +331,8 @@ export default function ProfileView({ profile, onSave, overrides, onOverridesCha
       <TargetsSection profile={profile} overrides={overrides} onChange={onOverridesChange} />
 
       <LabelScannerSettings />
+
+      <AiAccessSettings {...aiAccess} />
 
       <BackupSection />
     </div>

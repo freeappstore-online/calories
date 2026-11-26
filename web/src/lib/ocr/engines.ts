@@ -85,6 +85,11 @@ function check() {
   }
 }
 
+/** Look up which engines are downloaded without a component showing them (the AI tools need it) */
+export function ensureEnginesChecked() {
+  if (!checked) check();
+}
+
 function subscribe(listener: () => void) {
   listeners.add(listener);
   if (!checked) check();

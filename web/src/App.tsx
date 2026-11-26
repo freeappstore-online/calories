@@ -17,6 +17,8 @@ import DashboardView from "./components/DashboardView";
 import ProfileView from "./components/ProfileView";
 import FoodsView from "./components/FoodsView";
 import { OPEN_LABEL_SCANNER_EVENT } from "./lib/labelScanner";
+import { DATA_CHANGED_EVENT } from "./lib/aiTools";
+import { useAiAccess } from "./lib/useAiAccess";
 
 type Page = "log" | "foods" | "dashboard" | "profile";
 
@@ -75,6 +77,20 @@ export default function App() {
     };
     window.addEventListener(OPEN_LABEL_SCANNER_EVENT, open);
     return () => window.removeEventListener(OPEN_LABEL_SCANNER_EVENT, open);
+  }, []);
+
+  // The AI tools (Profile → AI access) change the log and custom foods behind the screen's back
+  const aiAccess = useAiAccess();
+  const dateRef = useRef(date);
+  dateRef.current = date;
+  const [dataVersion, setDataVersion] = useState(0);
+  useEffect(() => {
+    const reload = () => {
+      setLog(getLog(dateRef.current));
+      setDataVersion((v) => v + 1);
+    };
+    window.addEventListener(DATA_CHANGED_EVENT, reload);
+    return () => window.removeEventListener(DATA_CHANGED_EVENT, reload);
   }, []);
 
   // Roll the selected day over after midnight if it was following "today"
@@ -199,7 +215,7 @@ export default function App() {
               onCopyYesterday={handleCopyYesterday}
             />
           )}
-          {page === "foods" && <FoodsView date={date} onAdd={handleAddEntry} />}
+          {page === "foods" && <FoodsView key={dataVersion} date={date} onAdd={handleAddEntry} />}
           {page === "dashboard" && (
             <DashboardView date={date} goals={goals} />
           )}
@@ -209,6 +225,7 @@ export default function App() {
               onSave={handleProfileSave}
               overrides={overrides}
               onOverridesChange={handleOverridesChange}
+              aiAccess={aiAccess}
             />
           )}
         </div>
