@@ -2,8 +2,9 @@ import { useRef, useState } from "react";
 import type { CustomFood } from "../data/types";
 import { CUSTOM_IMAGE, isValidGrams, MAX_CUSTOM_VALUE, MAX_GRAMS, MIN_GRAMS, newCustomId, saveCustomFood } from "../lib/customFoods";
 import { MICRO_DEFS } from "../data/types";
-import { parseLabel } from "../lib/labelParser";
-import { OPEN_LABEL_SCANNER_EVENT, scanLabelImage, useLabelScanner } from "../lib/labelScanner";
+import { OPEN_LABEL_SCANNER_EVENT, photoToCanvas, scanCanvas, useEngines, type ScanProgress } from "../lib/labelScanner";
+import { bestAttempt, nextEngine, type Attempt } from "../lib/ocr/chain";
+import { ENGINES, readyEngines } from "../lib/ocr/engines";
 import Modal from "./Modal";
 
 interface CustomFoodFormProps {
@@ -38,50 +39,80 @@ const scannedStyle = { ...inputStyle, border: "1px solid var(--accent)" };
 export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps) {
   const [values, setValues] = useState<Record<string, string>>({ name: "", servingLabel: "1 serving", servingGrams: "100", calories: "" });
   const [error, setError] = useState<string | null>(null);
-  const scanner = useLabelScanner();
+  const engines = useEngines();
+  const anyReady = readyEngines().length > 0;
   const photoRef = useRef<HTMLInputElement>(null);
-  const [scanning, setScanning] = useState<number | null>(null);
+  const [scanning, setScanning] = useState<ScanProgress | null>(null);
   const [scanned, setScanned] = useState<Set<string>>(new Set());
   const [scanNote, setScanNote] = useState<{ text: string; error: boolean } | null>(null);
+  // What the last scan saw: the photo, every model's attempt, and the one whose values are in the form
+  const [review, setReview] = useState<{ canvas: HTMLCanvasElement; attempts: Attempt[]; shown: number } | null>(null);
   const set = (key: string, v: string) => {
     setValues((prev) => ({ ...prev, [key]: v }));
     setScanned((prev) => (prev.has(key) ? new Set([...prev].filter((k) => k !== key)) : prev));
   };
 
-  const handlePhoto = async (file: File | undefined) => {
-    if (!file) return;
-    setScanning(0);
+  /** Put one attempt's values in the form (replacing what an earlier attempt filled, never what was typed by hand) */
+  const apply = (attempt: Attempt, attempts: Attempt[]) => {
+    const scan = attempt.scan;
+    if (!scan) return;
+    const count = Object.keys(scan.values).length;
+    const how = `Read by ${ENGINES[attempt.engine].name} in ${Math.max(1, Math.round(attempt.ms / 1000))} s.`;
+    if (!scan.values.calories && count < 2) {
+      setScanNote({ text: `Could not read a nutrition table. ${how} Try a sharper, well lit photo of just the panel${nextEngine(new Set(readyEngines()), attempts) ? ", or try the next model" : ""}.`, error: true });
+      return;
+    }
+    const filled: Record<string, string> = {};
+    for (const [key, v] of Object.entries(scan.values)) filled[key] = String(v);
+    if (scan.servingGrams) filled["servingGrams"] = String(scan.servingGrams);
+    if (scan.servingLabel) filled["servingLabel"] = scan.servingLabel;
+    if (scan.name && (!values["name"]?.trim() || scanned.has("name"))) filled["name"] = scan.name;
+    setValues((prev) => {
+      const next = { ...prev };
+      for (const k of scanned) next[k] = k === "servingLabel" ? "1 serving" : k === "servingGrams" ? "100" : "";
+      return { ...next, ...filled };
+    });
+    setScanned(new Set(Object.keys(filled)));
+    // No model read all four key values cleanly: this is the best of what they read
+    const weak = attempts.length > 1 && !attempt.good && !nextEngine(new Set(readyEngines()), attempts) ? "No model read the whole label cleanly; these are the best reading. " : "";
+    setScanNote({
+      text: `Filled ${count} nutrient${count === 1 ? "" : "s"} from the label (outlined). ${how} ${weak}Check them against the label before saving. ${scan.warnings.join(" ")}`.trim(),
+      error: scan.warnings.length > 0 || weak !== "",
+    });
+  };
+
+  const showReview = (canvas: HTMLCanvasElement, attempts: Attempt[], shown: number) => {
+    setReview({ canvas, attempts, shown });
+    const attempt = attempts[shown];
+    if (attempt) apply(attempt, attempts);
+  };
+
+  /** Read a photo with the downloaded models in order, or (continuing a scan) with the next one */
+  const runScan = async (canvas: HTMLCanvasElement, previous?: Attempt[]) => {
+    setScanning({ engine: readyEngines()[0] ?? "tesseract", fraction: 0 });
     setScanNote(null);
     setError(null);
     try {
-      const scan = parseLabel(await scanLabelImage(file, setScanning));
-      const count = Object.keys(scan.values).length;
-      if (!scan.values.calories && count < 2) {
-        setScanNote({ text: "Could not read a nutrition table. Try a sharper, well lit photo of just the panel.", error: true });
-        return;
-      }
-      const filled: Record<string, string> = {};
-      for (const [key, v] of Object.entries(scan.values)) filled[key] = String(v);
-      if (scan.servingGrams) filled["servingGrams"] = String(scan.servingGrams);
-      if (scan.servingLabel) filled["servingLabel"] = scan.servingLabel;
-      if (scan.name && (!values["name"]?.trim() || scanned.has("name"))) filled["name"] = scan.name;
-      // A new scan replaces what the previous one filled in, and leaves anything typed by hand alone
-      setValues((prev) => {
-        const next = { ...prev };
-        for (const k of scanned) next[k] = k === "servingLabel" ? "1 serving" : k === "servingGrams" ? "100" : "";
-        return { ...next, ...filled };
-      });
-      setScanned(new Set(Object.keys(filled)));
-      setScanNote({
-        text: `Filled ${count} nutrient${count === 1 ? "" : "s"} from the label (outlined). Check them against the label before saving. ${scan.warnings.join(" ")}`.trim(),
-        error: scan.warnings.length > 0,
-      });
+      const attempts = await scanCanvas(canvas, setScanning, { previous, single: !!previous });
+      const best = previous ? attempts.length - 1 : attempts.indexOf(bestAttempt(attempts)!);
+      showReview(canvas, attempts, best);
     } catch (e) {
       setScanNote({ text: e instanceof Error ? e.message : "Could not scan the label.", error: true });
     } finally {
       setScanning(null);
     }
   };
+
+  const handlePhoto = async (photo: File | undefined) => {
+    if (!photo) return;
+    try {
+      await runScan(await photoToCanvas(photo));
+    } catch (e) {
+      setScanNote({ text: e instanceof Error ? e.message : "Could not scan the label.", error: true });
+    }
+  };
+
+  const tryNext = () => review && void runScan(review.canvas, review.attempts);
 
   const openProfile = () => {
     onClose();
@@ -177,31 +208,19 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
         </div>
 
         <div className="p-4 flex flex-col gap-3 overflow-y-auto">
-          {scanner.status === "ready" && (
-            <>
-              <button
-                onClick={() => photoRef.current?.click()}
-                disabled={scanning !== null}
-                className="w-full py-2.5 rounded-lg text-sm font-semibold cursor-pointer disabled:opacity-60"
-                style={{ background: "var(--panel)", border: "1px solid var(--accent)", color: "var(--accent)" }}
-              >
-                {scanning === null ? "Scan label" : `Reading label... ${Math.round(scanning * 100)}%`}
-              </button>
-              <input
-                ref={photoRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                aria-label="Label photo"
-                className="hidden"
-                onChange={(e) => {
-                  void handlePhoto(e.target.files?.[0]);
-                  e.target.value = "";
-                }}
-              />
-            </>
+          {anyReady && (
+            <button
+              onClick={() => photoRef.current?.click()}
+              disabled={scanning !== null}
+              className="w-full py-2.5 rounded-lg text-sm font-semibold cursor-pointer disabled:opacity-60"
+              style={{ background: "var(--panel)", border: "1px solid var(--accent)", color: "var(--accent)" }}
+            >
+              {scanning === null
+                ? review ? "Scan again" : "Scan label"
+                : `Reading with ${ENGINES[scanning.engine].name}...${scanning.fraction > 0 ? ` ${Math.round(scanning.fraction * 100)}%` : ""}`}
+            </button>
           )}
-          {(scanner.status === "none" || scanner.status === "downloading") && (
+          {!anyReady && Object.values(engines).some((e) => e.status === "none" || e.status === "downloading") && (
             <p className="text-[0.6875rem]" style={{ color: "var(--muted)" }}>
               Want to fill this in from a photo of the label?{" "}
               <button
@@ -215,10 +234,58 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
             </p>
           )}
           {scanNote && (
-            <p role="status" className="text-xs" style={{ color: scanNote.error ? "var(--error)" : "var(--muted)" }}>
+            <p role="status" data-testid="scan-note" data-confidence={review?.attempts[review.shown]?.confidence?.toFixed(0)} data-good={review?.attempts[review.shown]?.good} className="text-xs" style={{ color: scanNote.error ? "var(--error)" : "var(--muted)" }}>
               {scanNote.text}
             </p>
           )}
+          {review && (
+            <>
+              {review.attempts.length > 1 && (
+                <div className="flex flex-wrap gap-1.5" role="group" aria-label="Models that read the label">
+                  {review.attempts.map((a, i) => (
+                    <button
+                      key={a.engine}
+                      type="button"
+                      aria-pressed={i === review.shown}
+                      data-confidence={a.confidence === null ? "" : Math.round(a.confidence)}
+                      data-good={a.good}
+                      onClick={() => showReview(review.canvas, review.attempts, i)}
+                      className="px-2.5 py-1 rounded-full text-[0.6875rem] font-semibold cursor-pointer"
+                      style={{
+                        background: i === review.shown ? "var(--accent)" : "var(--paper)",
+                        color: i === review.shown ? "#fff" : "var(--ink)",
+                        border: "1px solid var(--accent)",
+                      }}
+                    >
+                      {ENGINES[a.engine].name}: {a.scan ? `${Object.keys(a.scan.values).length} values` : "failed"}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {scanning === null && nextEngine(new Set(readyEngines()), review.attempts) && (
+                <button
+                  type="button"
+                  onClick={tryNext}
+                  className="w-full py-2 rounded-lg text-xs font-semibold cursor-pointer"
+                  style={{ background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)" }}
+                >
+                  Try next model ({ENGINES[nextEngine(new Set(readyEngines()), review.attempts)!].name})
+                </button>
+              )}
+            </>
+          )}
+          <input
+            ref={photoRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            aria-label="Label photo"
+            className="hidden"
+            onChange={(e) => {
+              void handlePhoto(e.target.files?.[0]);
+              e.target.value = "";
+            }}
+          />
           <label className="block">
             <span className="text-[0.6875rem] font-medium block mb-0.5" style={{ color: "var(--muted)" }}>Name</span>
             <input
