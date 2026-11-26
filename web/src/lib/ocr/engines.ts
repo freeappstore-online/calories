@@ -14,6 +14,8 @@ export interface EngineInfo {
   speed: string;
   /** Fast enough to read the live camera view */
   live: boolean;
+  /** Short badge shown next to the name in Profile */
+  tag?: { text: string; tone: "good" | "warn" };
 }
 
 export const ENGINES: Record<EngineId, EngineInfo> = {
@@ -32,14 +34,16 @@ export const ENGINES: Record<EngineId, EngineInfo> = {
     about: "Finds each line of text first, then reads it. Much better on real photos: glare, curves and tables.",
     speed: "A few seconds",
     live: true,
+    tag: { text: "Recommended", tone: "good" },
   },
   florence: {
     id: "florence",
     name: "Florence-2",
     licence: "MIT, runs on transformers.js (Apache-2.0)",
-    about: "A large vision model for the hardest photos. Last resort: slow, and a big download.",
-    speed: "Up to a minute or more on a phone",
+    about: "A large vision model, tried last. Rarely reads more than PaddleOCR, and a very big download.",
+    speed: "About 1–2 minutes per scan on a phone",
     live: false,
+    tag: { text: "Experimental · very slow", tone: "warn" },
   },
 };
 

@@ -74,7 +74,9 @@ export async function scanCanvas(
 
 /** The fastest downloaded model that can keep up with a live camera view, opened and kept open until closed */
 export async function openLiveEngine(): Promise<{ engine: EngineId; runtime: EngineRuntime } | null> {
-  const id = readyEngines().find((e) => ENGINES[e].live);
+  // The live view wants the quickest read, so prefer Tesseract here even though scans try PaddleOCR first
+  const ready = readyEngines();
+  const id = (["tesseract", "paddle"] as EngineId[]).find((e) => ready.includes(e) && ENGINES[e].live);
   if (!id) return null;
   return { engine: id, runtime: await openEngine(id) };
 }

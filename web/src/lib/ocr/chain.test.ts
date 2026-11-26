@@ -132,57 +132,57 @@ describe("runChain", () => {
   });
 
   it("stops at the first good result", async () => {
-    texts.tesseract = GOOD_TEXT;
     texts.paddle = GOOD_TEXT;
-    await run(["tesseract", "paddle", "florence"]);
-    expect(calls).toEqual(["tesseract"]);
+    texts.tesseract = GOOD_TEXT;
+    await run(["paddle", "tesseract", "florence"]);
+    expect(calls).toEqual(["paddle"]);
   });
 
   it("moves on after a weak result, and stops once a later one is good", async () => {
-    texts.tesseract = PARTIAL_TEXT;
-    texts.paddle = GOOD_TEXT;
+    texts.paddle = PARTIAL_TEXT;
+    texts.tesseract = GOOD_TEXT;
     texts.florence = GOOD_TEXT;
-    const attempts = await run(["tesseract", "paddle", "florence"]);
-    expect(calls).toEqual(["tesseract", "paddle"]);
-    expect(bestAttempt(attempts)?.engine).toBe("paddle");
+    const attempts = await run(["paddle", "tesseract", "florence"]);
+    expect(calls).toEqual(["paddle", "tesseract"]);
+    expect(bestAttempt(attempts)?.engine).toBe("tesseract");
   });
 
   it("moves on after an engine fails to run", async () => {
-    texts.tesseract = new Error("worker crashed");
-    texts.paddle = GOOD_TEXT;
-    const attempts = await run(["tesseract", "paddle"]);
-    expect(attempts.map((a) => [a.engine, a.error ?? null])).toEqual([["tesseract", "worker crashed"], ["paddle", null]]);
-    expect(bestAttempt(attempts)?.engine).toBe("paddle");
+    texts.paddle = new Error("worker crashed");
+    texts.tesseract = GOOD_TEXT;
+    const attempts = await run(["paddle", "tesseract"]);
+    expect(attempts.map((a) => [a.engine, a.error ?? null])).toEqual([["paddle", "worker crashed"], ["tesseract", null]]);
+    expect(bestAttempt(attempts)?.engine).toBe("tesseract");
   });
 
   it("when nothing is good, tries everything and the best read wins", async () => {
-    texts.tesseract = PARTIAL_TEXT;
-    texts.paddle = CONFLICT_TEXT;
+    texts.paddle = PARTIAL_TEXT;
+    texts.tesseract = CONFLICT_TEXT;
     texts.florence = new Error("out of memory");
-    const attempts = await run(["tesseract", "paddle", "florence"]);
-    expect(calls).toEqual(["tesseract", "paddle", "florence"]);
+    const attempts = await run(["paddle", "tesseract", "florence"]);
+    expect(calls).toEqual(["paddle", "tesseract", "florence"]);
     expect(attempts.some((a) => a.good)).toBe(false);
-    expect(bestAttempt(attempts)?.engine).toBe("paddle");
+    expect(bestAttempt(attempts)?.engine).toBe("tesseract");
   });
 
   it("Try next model runs one more engine from where the scan stopped, good result or not", async () => {
-    texts.tesseract = GOOD_TEXT;
-    texts.paddle = PARTIAL_TEXT;
-    const first = await run(["tesseract", "paddle"]);
-    expect(calls).toEqual(["tesseract"]);
-    const next = await run(["tesseract", "paddle"], { previous: first, single: true });
+    texts.paddle = GOOD_TEXT;
+    texts.tesseract = PARTIAL_TEXT;
+    const first = await run(["paddle", "tesseract"]);
     expect(calls).toEqual(["paddle"]);
-    expect(next.map((a) => a.engine)).toEqual(["tesseract", "paddle"]);
+    const next = await run(["paddle", "tesseract"], { previous: first, single: true });
+    expect(calls).toEqual(["tesseract"]);
+    expect(next.map((a) => a.engine)).toEqual(["paddle", "tesseract"]);
     // Nothing left to try
-    await run(["tesseract", "paddle"], { previous: next, single: true });
+    await run(["paddle", "tesseract"], { previous: next, single: true });
     expect(calls).toEqual([]);
   });
 
   it("reports each engine as it starts", async () => {
-    texts.tesseract = PARTIAL_TEXT;
-    texts.paddle = GOOD_TEXT;
+    texts.paddle = PARTIAL_TEXT;
+    texts.tesseract = GOOD_TEXT;
     const started: EngineId[] = [];
-    await run(["tesseract", "paddle"], { onStart: (e) => started.push(e) });
-    expect(started).toEqual(["tesseract", "paddle"]);
+    await run(["paddle", "tesseract"], { onStart: (e) => started.push(e) });
+    expect(started).toEqual(["paddle", "tesseract"]);
   });
 });

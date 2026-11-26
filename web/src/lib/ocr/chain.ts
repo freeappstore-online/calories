@@ -2,7 +2,9 @@ import { parseLabel, type LabelField, type LabelScan } from "../labelParser";
 import { ocrConfidence, ocrText, type EngineId, type OcrResult } from "./types";
 
 /** Engines in the order a scan tries them: fastest first */
-export const ENGINE_ORDER: EngineId[] = ["tesseract", "paddle", "florence"];
+// PaddleOCR first: it is the most accurate (99% of fields on the test labels). Tesseract reports high
+// confidence even when it misreads, so as the first engine it often "wins" with a wrong value (#31).
+export const ENGINE_ORDER: EngineId[] = ["paddle", "tesseract", "florence"];
 
 /** The values a label scan must find before the result is trusted without asking another model */
 export const KEY_FIELDS: LabelField[] = ["calories", "protein", "carbs", "fat"];

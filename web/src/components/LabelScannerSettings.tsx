@@ -33,6 +33,17 @@ function EngineRow({ id, position }: { id: EngineId; position: number }) {
         <div className="min-w-0">
           <h3 className="text-sm font-semibold" style={{ color: "var(--ink)" }}>
             {position}. {engine.name}
+            {engine.tag && (
+              <span
+                className="ml-2 align-middle px-1.5 py-0.5 rounded text-[0.625rem] font-semibold"
+                style={{
+                  background: `color-mix(in srgb, ${engine.tag.tone === "good" ? "var(--success)" : "var(--warning)"} 18%, transparent)`,
+                  color: engine.tag.tone === "good" ? "var(--success)" : "var(--warning)",
+                }}
+              >
+                {engine.tag.text}
+              </span>
+            )}
           </h3>
           <p className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>
             {engine.about}
