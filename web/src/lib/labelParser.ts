@@ -19,6 +19,8 @@ type Unit = "g" | "mg" | "ug" | "kj" | "kcal" | "iu" | "";
 interface Token {
   value: number;
   unit: Unit;
+  /** Printed as "<1": value is half the stated limit */
+  lt?: boolean;
 }
 
 /** Display units of each field, the unit values are converted to */
@@ -37,7 +39,7 @@ const KEYWORDS: { key: Key; re: RegExp }[] = [
   { key: null, re: /\b(?:trans|poly\s*-?\s*unsaturated|mono\s*-?\s*unsaturated|unsaturated)(?:\s+fat)?\b/gi },
   { key: "satFat", re: /\b(?:saturat\w*|sat\.?)(?:\s+fats?)?/gi },
   { key: "energy", re: /\b(?:energy|calories)\b/gi },
-  { key: "protein", re: /\bprotein/gi },
+  { key: "protein", re: /\bprot[a-z]{0,2}[nm]\b/gi },
   { key: "carbs", re: /\b(?:total\s+)?carbohydrates?(?:\s*,?\s*total)?|\bcarbs\b/gi },
   { key: "sugar", re: /\b(?:total\s+)?sugars?\b/gi },
   { key: "fiber", re: /\b(?:dietary\s+)?fib(?:re|er)\b/gi },
@@ -55,8 +57,9 @@ const KEYWORDS: { key: Key; re: RegExp }[] = [
   { key: "vitaminB12", re: /\bvit(?:amin|\.)?\s*b\s*-?\s*12\b/gi },
 ];
 
+/** Groups: 1 "<", 2 number, 3 "Nil" (as OCR reads it), 4 unit */
 const TOKEN_RE =
-  /(?<![A-Za-z0-9])([0-9OoIl|][0-9OoIl|]*(?:[.,][0-9OoIl|]+)?)\s*(kj|k[dli]|kcal|cal|mg|m(?:c|e|ce)g|[µμu]g|iu|g|%)?(?![A-Za-z0-9])/gi;
+  /(?<![A-Za-z0-9])(<\s*)?(?:([0-9OoIl|§][0-9OoIl|§]*(?:[.,][0-9OoIl|§]+)?)|(n[iIl1|][iIl1|]))\s*(kj|k[dli]|kcal|cal|m(?:c|e|ce)?g?|[µμu]g|iu|g|%)?(?![A-Za-z0-9])/gi;
 
 function toUnit(raw: string | undefined): Unit | "%" {
   const u = (raw ?? "").toLowerCase();
@@ -64,7 +67,7 @@ function toUnit(raw: string | undefined): Unit | "%" {
   if (u === "%") return "%";
   if (u === "kj" || /^k[dli]$/.test(u)) return "kj";
   if (u === "kcal" || u === "cal") return "kcal";
-  if (u === "mg") return "mg";
+  if (u === "mg" || u === "m") return "mg";
   if (u === "g") return "g";
   if (u === "iu") return "iu";
   return "ug";
@@ -72,7 +75,7 @@ function toUnit(raw: string | undefined): Unit | "%" {
 
 /** "1,046" is a thousand, "0,5" and "4,2" are decimals */
 function parseNumber(raw: string): number | null {
-  let s = raw.replace(/[Oo]/g, "0").replace(/[Il|]/g, "1");
+  let s = raw.replace(/[Oo]/g, "0").replace(/[Il|]/g, "1").replace(/§/g, "5");
   if (!/\d/.test(s)) return null;
   if (/^[1-9]\d{0,2},\d{3}$/.test(s)) s = s.replace(",", "");
   else s = s.replace(",", ".");
@@ -80,21 +83,34 @@ function parseNumber(raw: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-/** Fast-model OCR often reads the "g" after a number as 9 ("3.2g" becomes "3.29", "7g" becomes "79") */
-function stripGramNine(raw: string): string {
-  return /^\d+\.\d+9$/.test(raw) || /^[1-9]\d*9$/.test(raw) && raw.length > 1 ? raw.slice(0, -1) : raw;
+/**
+ * Fast-model OCR often reads the "g" after a number as 9 ("3.2g" becomes "3.29", "7g" becomes "79").
+ * `all`: also whole numbers, which is only safe where units are printed beside the numbers; a real "19" must survive elsewhere.
+ */
+function stripGramNine(rawText: string, all: boolean): string {
+  const raw = rawText.replace(/[Oo]/g, "0").replace(/[Il|]/g, "1").replace(/§/g, "5");
+  if (/^\d+\.\d+9$/.test(raw)) return raw.slice(0, -1);
+  return all && /^[1-9]\d*9$/.test(raw) && raw.length > 1 ? raw.slice(0, -1) : raw;
 }
 
-function tokenize(text: string, gramField = false): Token[] {
+type Strip = "none" | "decimal" | "all";
+
+/** `strip`: how far to repair a unit-less gram value whose "g" was misread as 9 */
+function tokenize(text: string, strip: Strip = "none"): Token[] {
   const out: Token[] = [];
   for (const m of text.matchAll(TOKEN_RE)) {
-    const raw = m[1]!;
-    const unit = toUnit(m[2]);
+    const unit = toUnit(m[4]);
     if (unit === "%") continue;
+    if (m[3]) {
+      out.push({ value: 0, unit });
+      continue;
+    }
+    const raw = m[2]!;
     // Letters that only look like digits count when a unit follows ("O g" is zero grams) or when mixed with real digits
     if (!/\d/.test(raw) && !(unit !== "" && /^[Oo]+$/.test(raw))) continue;
-    const value = parseNumber(unit === "" && gramField ? stripGramNine(raw) : raw);
-    if (value !== null) out.push({ value, unit });
+    const value = parseNumber(unit === "" && strip !== "none" ? stripGramNine(raw, strip === "all") : raw);
+    if (value === null) continue;
+    out.push(m[1] ? { value: value / 2, unit, lt: true } : { value, unit });
   }
   return out;
 }
@@ -111,6 +127,8 @@ function convert(t: Token, target: Unit): number | null {
 
 interface Segment {
   key: Key;
+  /** The keyword as printed ("Energy", "Calories") */
+  word: string;
   text: string;
 }
 
@@ -127,7 +145,7 @@ function segments(line: string): Segment[] {
     }
   }
   claimed.sort((a, b) => a.start - b.start);
-  return claimed.map((c, i) => ({ key: c.key, text: line.slice(c.end, claimed[i + 1]?.start ?? line.length) }));
+  return claimed.map((c, i) => ({ key: c.key, word: line.slice(c.start, c.end), text: line.slice(c.end, claimed[i + 1]?.start ?? line.length) }));
 }
 
 /** Grams (or mL, taken as grams) of one serving and an optional friendly label */
@@ -137,9 +155,13 @@ function findServing(text: string): { grams?: number; label?: string } {
   const unit = "\\s*(?:g|ml)\\b";
   const grams = (s: string) => parseNumber(s);
 
-  const size = text.match(new RegExp(`serv(?:ing|e)\\s*size\\s*:?\\s*([^\\n]*)`, "i"));
+  // The word "size" is sometimes misread ("Serving mze 309"), so any short word followed by a number will do
+  const size =
+    text.match(new RegExp(`serv(?:ing|e)\\s*size\\s*:?\\s*([^\\n]*)`, "i")) ??
+    text.match(new RegExp(`serv(?:ing|e)\\s*[a-z]{3,4}\\s*:?\\s*(\\d[^\\n]*)`, "i"));
   if (size) {
-    const rest = size[1]!;
+    // "309" is 30 g with the g read as 9
+    const rest = size[1]!.replace(/^(\s*\d{2,})9(?![\d.]|\s*(?:g|ml)\b)/, "$1 g");
     // "1 bar (40g)" or "2 biscuits (30 g)": label before the parenthesis, grams inside it
     const paren = rest.match(new RegExp(`^(.*?)\\(\\s*${num}${unit}[^)]*\\)`, "i"));
     if (paren) {
@@ -153,7 +175,7 @@ function findServing(text: string): { grams?: number; label?: string } {
       return { grams: grams(lead[1]!) ?? undefined, label: /[A-Za-z]/.test(label) ? label : undefined };
     }
   }
-  const per = text.match(new RegExp(`per\\s+${num}${unit}\\s*(?:serv|portion)`, "i")) ??
+  const per = text.match(new RegExp(`per\\s+([0-9OolI]+?(?:[.,][0-9]+)?)\\s*(?:g|9|ml)\\s*(?:serv|portion)`, "i")) ??
     text.match(new RegExp(`(?:serv(?:ing|e)|portion)\\s*\\(?\\s*${num}${unit}`, "i")) ??
     text.match(new RegExp(`${num}${unit}\\s*(?:serving|portion)`, "i"));
   return per ? { grams: grams(per[1]!) ?? undefined } : {};
@@ -182,14 +204,22 @@ export function parseLabel(text: string): LabelScan {
   const warnings: string[] = [];
 
   // Column order from the header: per serving vs per 100 g
-  const servIdx = joined.search(/per\s+(?:serving|serve|portion|\d+\s*g\s+serving)/i);
-  const hundredIdx = joined.search(/per\s*100\s*(?:g|ml)|\b100\s*(?:g|ml)\b/i);
-  const cols: ("serving" | "per100")[] =
+  const servIdx = joined.search(/per\s+(?:serving|serve|portion|\d+\s*[g9]\s+serving)/i);
+  const hundredIdx = joined.search(/per\s*[1lIt|]00\s*(?:g|9|ml)|\b[1lIt|]00\s*(?:g|ml)\b/i);
+  const headerKnown = servIdx >= 0 || hundredIdx >= 0;
+  let cols: ("serving" | "per100")[] =
     servIdx >= 0 && hundredIdx >= 0
       ? servIdx < hundredIdx ? ["serving", "per100"] : ["per100", "serving"]
       : [hundredIdx >= 0 && servIdx < 0 ? "per100" : "serving"];
+  // With no column header read at all, keep two values per row and work out the order from the serving size afterwards
+  const width = headerKnown ? cols.length : 2;
+
+  // Units in the row headings ("Protein (g) 5.7 19") mean the numbers carry none, so a trailing 9 is real
+  const headingUnits = /\((?:g|9|mg)\)/i.test(joined);
+  const usLike = /daily\s*value|nutrition\s*facts/i.test(joined);
 
   const columns: Columns = {};
+  const approx = new Set<string>();
   let kj: number[] = [];
   let kcal: number[] = [];
   let salt: number[] = [];
@@ -208,39 +238,82 @@ export function parseLabel(text: string): LabelScan {
     for (const seg of segs) {
       lastKey = seg.key;
       if (!seg.key) continue;
+      // What is printed between the nutrient name and its first number: "(kJ)", "(g)", "kJ/kcal"
+      const heading = seg.text.split(/\d/)[0] ?? "";
       const gramField = FIELD_UNIT[seg.key] === "g" || seg.key === "salt";
-      const tokens = tokenize(seg.text, gramField);
+      // "(9)" is a "(g)" heading; it must not count as a number
+      const text = seg.text.replace(/\(\s*(?:g|9|mg|m9)\s*\)/gi, " ");
+      let strip: Strip = "none";
+      if (gramField && !headingUnits) {
+        // Whole numbers are only repaired where this row (or a US panel) prints units beside its numbers, or already needed repair
+        const rowUnits = tokenize(text).some((t) => t.unit === "g") || text.includes("%");
+        const repaired = tokenize(text, "decimal").some((t, i) => t.value !== tokenize(text)[i]?.value);
+        strip = rowUnits || usLike || repaired ? "all" : "decimal";
+      }
+      const tokens = tokenize(text, strip);
       if (seg.key === "energy") {
         const bare = tokens.filter((t) => t.unit === "");
         const k = tokens.filter((t) => t.unit === "kcal").map((t) => t.value);
         const j = tokens.filter((t) => t.unit === "kj").map((t) => t.value);
-        // US "Calories 200": a bare number is kcal
+        const headKj = /\bk[jdli]\b|kilojoule/i.test(heading);
+        const headKcal = /\bk?c{1,2}al\b|\bcalorie/i.test(heading);
         if (k.length) kcal = kcal.length ? kcal : k;
-        else if (j.length === 0 && bare.length) kcal = kcal.length ? kcal : bare.map((t) => t.value);
         if (j.length && kj.length === 0) kj = j;
+        if (k.length === 0 && j.length === 0 && bare.length) {
+          const nums = bare.map((t) => t.value);
+          if ((headKj && headKcal) || /\bk[jdli]\s*\//i.test(heading)) {
+            // "kJ/kcal 1046/250": each pair holds both figures, and kJ is always the larger
+            const pairs: number[][] = [];
+            for (let i = 0; i + 1 < nums.length; i += 2) pairs.push([nums[i]!, nums[i + 1]!]);
+            if (pairs.length && kcal.length === 0) kcal = pairs.map((p) => Math.min(...p));
+            if (pairs.length && kj.length === 0) kj = pairs.map((p) => Math.max(...p));
+          } else if (headKcal || (!headKj && /^calor/i.test(seg.word))) {
+            // US "Calories 200": a bare number is kcal
+            if (kcal.length === 0) kcal = nums;
+          } else if (kj.length === 0) {
+            // "Energy (kJ) 485 1620", or "Energy 485 1620" with the unit lost: AU/NZ panels print kJ
+            kj = nums;
+          }
+        }
         continue;
       }
       // A stray unit-less number beyond the expected columns is usually a misread % value
       const withUnit = tokens.filter((t) => t.unit !== "");
-      const use = tokens.length > cols.length && withUnit.length ? withUnit : tokens;
+      const use = tokens.length > width && withUnit.length ? withUnit : tokens;
       if (seg.key === "salt") {
         if (salt.length === 0) salt = use.map((t) => convert(t, "g")).filter((v): v is number => v !== null);
         continue;
       }
       if (columns[seg.key]) continue;
       const target = FIELD_UNIT[seg.key] ?? "g";
-      const vals = use.map((t) => convert(t, target)).filter((v): v is number => v !== null);
-      if (vals.length) columns[seg.key] = vals.slice(0, cols.length);
+      const kept = use.map((t) => ({ v: convert(t, target), lt: t.lt })).filter((x): x is { v: number; lt: boolean | undefined } => x.v !== null).slice(0, width);
+      if (kept.length) {
+        columns[seg.key] = kept.map((x) => x.v);
+        kept.forEach((x, i) => x.lt && approx.add(`${seg.key}:${i}`));
+      }
     }
   }
 
-  if (kcal.length) columns.calories = kcal.slice(0, cols.length);
-  else if (kj.length) columns.calories = kj.slice(0, cols.length).map((v) => v / 4.184);
-  if (!columns.sodium && salt.length) columns.sodium = salt.slice(0, cols.length).map((g) => g * 400);
+  // A kcal figure that is not about a quarter of the kJ beside it was misread (e.g. "1 16"); the kJ one wins
+  if (kcal.length && kj.length) kcal = kcal.map((c, i) => (kj[i] !== undefined && Math.abs(c - kj[i]! / 4.184) > 0.15 * (kj[i]! / 4.184) ? kj[i]! / 4.184 : c));
+  if (kcal.length) columns.calories = kcal.slice(0, width);
+  else if (kj.length) columns.calories = kj.slice(0, width).map((v) => v / 4.184);
+  if (!columns.sodium && salt.length) columns.sodium = salt.slice(0, width).map((g) => g * 400);
 
   // Serving size
   const serving = findServing(joined);
   const grams = serving.grams && serving.grams > 0 ? serving.grams : undefined;
+
+  if (!headerKnown && grams && grams !== 100) {
+    // Per-100 g figures are 100/grams times the per-serving ones: the larger column is per 100 g when the serving is under 100 g
+    const ratio = 100 / grams;
+    const pairs = Object.values(columns).filter((v) => v.length >= 2 && v[0]! > 0 && v[1]! > 0);
+    const near = (r: number, want: number) => Math.abs(r / want - 1) <= 0.25;
+    const first100 = pairs.filter((v) => near(v[0]! / v[1]!, ratio)).length;
+    const second100 = pairs.filter((v) => near(v[1]! / v[0]!, ratio)).length;
+    if (first100 >= 2 && first100 > second100) cols = ["per100", "serving"];
+    else if (second100 >= 2 && second100 > first100) cols = ["serving", "per100"];
+  }
 
   // One basis for everything: per 100 g when the label has it (cross-checked against the serving column), else per serving
   const servCol = cols.indexOf("serving");
@@ -248,20 +321,44 @@ export function parseLabel(text: string): LabelScan {
   const entries = Object.entries(columns) as [LabelField, number[]][];
   const at = (vals: number[], col: number) => (col >= 0 ? vals[col] : undefined);
   const values: Partial<Record<LabelField, number>> = {};
+  const disagree: LabelField[] = [];
   for (const [field, vals] of entries) {
-    const s = at(vals, servCol);
-    const h = at(vals, hundredCol);
+    // Grams of a nutrient cannot exceed the grams of food: a bigger number is a misread
+    const gramLimit = FIELD_UNIT[field] === "g";
+    let s = at(vals, servCol);
+    let h = at(vals, hundredCol);
+    const printed = s !== undefined || h !== undefined;
+    if (gramLimit && h !== undefined && h > 100) h = undefined;
+    if (gramLimit && s !== undefined && s > (grams ?? 100) * 1.05) s = undefined;
     let perServing: number | undefined;
     if (h !== undefined && grams) {
       // The per-100 g figure is the more precise; keep the printed per-serving number when it agrees, so values match the label
       const scaled = (h * grams) / 100;
-      perServing = s !== undefined && Math.abs(s - scaled) <= Math.max(0.15 * scaled, 0.1) ? s : scaled;
+      const sApprox = approx.has(`${field}:${servCol}`);
+      const hApprox = approx.has(`${field}:${hundredCol}`);
+      if (s === undefined || (sApprox && !hApprox)) perServing = scaled;
+      else if (hApprox || Math.abs(s - scaled) <= Math.max(0.15 * scaled, 0.1)) perServing = s;
+      else if (scaled > 0 && [10, 0.1].some((f) => Math.abs(s / scaled - f) <= 0.15 * f)) {
+        // A lost or extra decimal point ("48g" for 4.8 g): the figure with a fractional part is the intact one
+        perServing = Number.isInteger(s) && !Number.isInteger(scaled) ? scaled : s;
+      } else {
+        // Two printed figures that do not agree: one was misread, and the printed per-serving one is what the label shows
+        perServing = s;
+        disagree.push(field);
+      }
     }
     else if (h !== undefined) perServing = h; // no serving size: treat the serving as 100 g
     else if (s !== undefined) perServing = s;
-    else if (vals[0] !== undefined) perServing = vals[0];
+    else if (!printed && vals[0] !== undefined) perServing = vals[0];
     if (perServing === undefined) continue;
     values[field] = field === "calories" ? Math.round(perServing) : round(perServing, 2);
+  }
+
+  // Sugars and fibre cannot exceed the carbohydrate, nor saturated fat the fat: a lost decimal point ("21" for 2.1)
+  for (const [field, parent] of [["sugar", "carbs"], ["fiber", "carbs"], ["satFat", "fat"]] as const) {
+    const v = values[field];
+    const total = values[parent];
+    if (v !== undefined && total !== undefined && Number.isInteger(v) && v > total + 0.05 && v / 10 <= total + 0.05) values[field] = round(v / 10, 2);
   }
 
   const scan: LabelScan = { values, warnings };
@@ -271,6 +368,8 @@ export function parseLabel(text: string): LabelScan {
   const name = findName(lines);
   if (name) scan.name = name;
 
+  if (disagree.length) warnings.push(`The per-serving and per-100 g columns do not match for ${disagree.join(", ")}. Check ${disagree.length === 1 ? "it" : "them"}.`);
+  if (approx.size) warnings.push('Values printed as "<" were entered as half the limit.');
   if (!grams && hundredCol < 0) warnings.push("No serving size in grams was found. Check the serving size.");
   if (!grams && hundredCol >= 0) warnings.push("No serving size was found, so values are per 100 g.");
   if (values.calories === undefined) warnings.push("Calories were not read.");

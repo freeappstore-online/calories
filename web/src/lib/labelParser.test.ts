@@ -130,6 +130,98 @@ describe("parseLabel", () => {
   });
 });
 
+describe("parseLabel: units in headings, trailing 9, <1 and Nil", () => {
+  const AU_HEAD = `NUTRITION INFORMATION
+Serving size: 30 g
+Quantity per Serving Quantity per 100 g
+Energy (kJ) 485 1620
+Protein (g) 5.7 19
+Fat, total (g) 3.3 11.0
+- saturated (g) 1.2 4.0
+Carbohydrate (g) 14.7 49
+- sugars (g) 2.1 7.0
+Dietary fibre (g) 2.4 8.0
+Sodium (mg) 135 450`;
+
+  it("reads bare numbers under an Energy (kJ) heading as kJ", () => {
+    expect(parseLabel(AU_HEAD).values.calories).toBe(116);
+  });
+
+  it("does not strip a real trailing 9 when units sit in the row headings", () => {
+    const r = parseLabel(AU_HEAD);
+    expect(r.values).toMatchObject({ protein: 5.7, fat: 3.3, satFat: 1.2, carbs: 14.7, sugar: 2.1, fiber: 2.4, sodium: 135 });
+    expect(r.warnings).toEqual([]);
+  });
+
+  it("takes the kcal figure from kJ/kcal pairs", () => {
+    const one = parseLabel("Typical values per 100 g\nEnergy kJ/kcal 1046/250\nProtein 7.5 g");
+    expect(one.values.calories).toBe(250);
+    const two = parseLabel("Typical values per 100 g per 30 g serving\nEnergy (kJ/kcal) 1620/385 486/116\nFat (g) 14 4.2");
+    expect(two.values.calories).toBe(116);
+  });
+
+  it("keeps the printed per-serving value and warns when the columns disagree", () => {
+    const r = parseLabel(`Serving size: 30 g
+per Serving per 100 g
+Energy 486 kJ 1620 kJ
+Protein 5.7 g 30.0 g
+Fat, total 3.3 g 11.0 g`);
+    expect(r.values.protein).toBe(5.7);
+    expect(r.warnings.join(" ")).toMatch(/do not match for protein/);
+  });
+
+  it("repairs a lost decimal point by the other column", () => {
+    const r = parseLabel("Serving size: 30 g\nper Serving per 100 g\nSugars 48 g 16.0 g");
+    expect(r.values.sugar).toBe(4.8);
+  });
+
+  it('reads "<1 g" as half a gram, not one, and says so', () => {
+    const r = parseLabel("Serving size: 30 g\nper Serving per 100 g\n- sugars <1 g <1 g\nProtein 5.7 g 19.0 g");
+    expect(r.values.sugar).toBe(0.5);
+    expect(r.values.protein).toBe(5.7);
+    expect(r.warnings.join(" ")).toMatch(/half the limit/);
+  });
+
+  it('reads "Nil" and "0.0" as zero', () => {
+    const r = parseLabel("Serving size: 30 g\nper Serving per 100 g\nDietary fibre Nil Nil\n- sugars 0.0 g 0.0 g\nProtein 5.7 g 19.0 g");
+    expect(r.values.fiber).toBe(0);
+    expect(r.values.sugar).toBe(0);
+  });
+});
+
+describe("parseLabel: smudged headers", () => {
+  it("works out the column order from the serving size when the header was not read", () => {
+    const r = parseLabel(`Serving size: 30 g
+Energy 1620 kJ/385 kcal 486 kJ/116 kcal
+Fat 14g 4.2g
+Carbohydrate 52g 15.6 g
+Protein 6.5g 2.0g`);
+    expect(r.values).toMatchObject({ calories: 116, fat: 4.2, carbs: 15.6, protein: 2 });
+  });
+
+  it('reads "309" as 30 g and "per 1009" as the per-100 g column', () => {
+    const r = parseLabel(`Serving mze 309
+Quantity per Serving Quantity per 1009
+Energy 485 kJ 1620 kJ
+Protem 5.79 19.09`);
+    expect(r.servingGrams).toBe(30);
+    expect(r.values).toMatchObject({ calories: 116, protein: 5.7 });
+  });
+});
+
+describe("parseLabel: sanity checks", () => {
+  it("prefers the kJ figure when the kcal beside it is not about a quarter of it", () => {
+    const r = parseLabel("Typical values per 100 g per 30 g serving\nEnergy 1620 kJ/385 kcal 486 kJ/1 16 kcal\nFat 14 g 4.2 g");
+    expect(r.values.calories).toBe(116);
+  });
+
+  it("drops grams that exceed the serving, and sugars that exceed the carbohydrate", () => {
+    const r = parseLabel("Serving size: 30 g\nper Serving per 100 g\nCarbohydrate 14.7 g 49.0 g\n- sugars 21 g 70 g\nProtein 219 g 19.0 g");
+    expect(r.values.protein).toBe(5.7);
+    expect(r.values.sugar).toBe(2.1);
+  });
+});
+
 // Real Tesseract.js output (eng "fast" model) for rendered label images, including rotated and blurred variants.
 const REAL: [string, string, Record<string, number>][] = [
   [
