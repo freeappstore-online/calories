@@ -4,6 +4,7 @@ import type { FoodItem } from "../data/types";
 import FoodIcon from "./FoodIcon";
 import CustomFoodForm from "./CustomFoodForm";
 import { getCustomFoods } from "../lib/customFoods";
+import { matchesQuery } from "../lib/foodSearch";
 import { getFavorites, toggleFavorite } from "../lib/foodHistory";
 
 interface FoodBrowserProps {
@@ -44,13 +45,8 @@ export default function FoodBrowser({ layout, onSelect, autoFocus, renderTop }: 
     if (selectedCategory) {
       result = result.filter((f) => f.category === selectedCategory);
     }
-    if (query.length > 0) {
-      const q = query.toLowerCase();
-      result = result.filter(
-        (f) =>
-          f.name.toLowerCase().includes(q) ||
-          f.category.toLowerCase().includes(q),
-      );
+    if (query.trim().length > 0) {
+      result = result.filter((f) => matchesQuery(query, f.name, f.category));
     }
     return result;
   }, [allFoods, query, selectedCategory]);
@@ -60,6 +56,7 @@ export default function FoodBrowser({ layout, onSelect, autoFocus, renderTop }: 
       <div className="px-4 pt-3 flex gap-2">
         <input
           type="text"
+          aria-label="Search foods"
           placeholder={`Search ${allFoods.length} foods...`}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -84,6 +81,7 @@ export default function FoodBrowser({ layout, onSelect, autoFocus, renderTop }: 
       <div className="flex gap-2 px-4 py-2 overflow-x-auto shrink-0">
         <button
           onClick={() => setSelectedCategory(null)}
+          aria-pressed={!selectedCategory}
           className="px-3 py-1 rounded-full text-xs whitespace-nowrap cursor-pointer"
           style={{
             background: !selectedCategory ? "var(--accent)" : "var(--panel)",
@@ -97,6 +95,7 @@ export default function FoodBrowser({ layout, onSelect, autoFocus, renderTop }: 
           <button
             key={c.id}
             onClick={() => setSelectedCategory(c.id === selectedCategory ? null : c.id)}
+            aria-pressed={selectedCategory === c.id}
             className="px-3 py-1 rounded-full text-xs whitespace-nowrap cursor-pointer"
             style={{
               background: selectedCategory === c.id ? "var(--accent)" : "var(--panel)",
@@ -141,7 +140,7 @@ export default function FoodBrowser({ layout, onSelect, autoFocus, renderTop }: 
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto px-4 pb-4">
-          {query.length === 0 && renderTop?.(favorites)}
+          {query.trim().length === 0 && renderTop?.(favorites)}
           <div className="space-y-1">
             {filtered.map((food) => (
               <div key={food.id} className="flex items-center">

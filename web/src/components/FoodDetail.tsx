@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { deleteCustomFood, servingsFor } from "../lib/customFoods";
+import { defaultServingIndex, deleteCustomFood, formatGrams, isValidGrams, MAX_GRAMS, MIN_GRAMS, servingsFor } from "../lib/customFoods";
+import { dropFavorite } from "../lib/foodHistory";
 import { MICRO_DEFS } from "../data/types";
 import type { FoodItem, MealType, FoodEntry } from "../data/types";
 import { formatMicro, scaleMicros, scaleNutrition } from "../lib/nutrition";
@@ -28,11 +29,12 @@ interface FoodDetailProps {
 export default function FoodDetail({ food, meal, onMealChange, onAdd, onDeleted }: FoodDetailProps) {
   const targets = useTargets();
   const servings = servingsFor(food);
-  const [gramsText, setGramsText] = useState(String(servings?.[0]?.grams ?? 100));
-  const [servingIdx, setServingIdx] = useState<number | null>(servings?.length ? 0 : null);
+  const firstIdx = defaultServingIndex(servings);
+  const [gramsText, setGramsText] = useState(String(servings?.[firstIdx ?? -1]?.grams ?? 100));
+  const [servingIdx, setServingIdx] = useState<number | null>(firstIdx);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const portionGrams = Number(gramsText);
-  const valid = Number.isFinite(portionGrams) && portionGrams >= 1;
+  const valid = gramsText.trim() !== "" && isValidGrams(portionGrams);
   const preview = scaleNutrition(food, valid ? portionGrams : 0);
   const factor = valid ? portionGrams / 100 : 0;
 
@@ -58,13 +60,14 @@ export default function FoodDetail({ food, meal, onMealChange, onAdd, onDeleted 
       {/* Serving sizes */}
       {servings && servings.length > 0 && (
         <div>
-          <label className="text-xs font-medium mb-1 block" style={{ color: "var(--muted)" }}>
+          <div className="text-xs font-medium mb-1 block" style={{ color: "var(--muted)" }}>
             Common servings
-          </label>
+          </div>
           <div className="flex flex-wrap gap-2">
             {servings.map((s, i) => (
               <button
                 key={s.label}
+                aria-pressed={servingIdx === i}
                 onClick={() => {
                   setServingIdx(i);
                   setGramsText(String(s.grams));
@@ -76,7 +79,7 @@ export default function FoodDetail({ food, meal, onMealChange, onAdd, onDeleted 
                   border: `1px solid ${servingIdx === i ? "var(--accent)" : "var(--line)"}`,
                 }}
               >
-                {s.label} ({Math.round(s.grams)}g)
+                {s.label} ({formatGrams(s.grams)})
               </button>
             ))}
           </div>
@@ -85,11 +88,14 @@ export default function FoodDetail({ food, meal, onMealChange, onAdd, onDeleted 
 
       {/* Custom grams */}
       <div>
-        <label className="text-xs font-medium mb-1 block" style={{ color: "var(--muted)" }}>
+        <label htmlFor="food-grams" className="text-xs font-medium mb-1 block" style={{ color: "var(--muted)" }}>
           Amount (grams)
         </label>
         <input
+          id="food-grams"
           type="number"
+          inputMode="decimal"
+          step="any"
           value={gramsText}
           onChange={(e) => {
             setGramsText(e.target.value);
@@ -101,8 +107,15 @@ export default function FoodDetail({ food, meal, onMealChange, onAdd, onDeleted 
             border: "1px solid var(--line)",
             color: "var(--ink)",
           }}
-          min={1}
+          min={MIN_GRAMS}
+          max={MAX_GRAMS}
+          aria-invalid={!valid}
         />
+        {!valid && (
+          <p role="alert" className="text-[0.6875rem] mt-1" style={{ color: "var(--error)" }}>
+            Enter an amount from {MIN_GRAMS} to {MAX_GRAMS} grams.
+          </p>
+        )}
       </div>
 
       {/* Macros */}
@@ -189,6 +202,7 @@ export default function FoodDetail({ food, meal, onMealChange, onAdd, onDeleted 
             <button
               key={m.id}
               onClick={() => onMealChange(m.id)}
+              aria-pressed={meal === m.id}
               className="py-1.5 rounded-lg text-xs cursor-pointer"
               style={{
                 background: meal === m.id ? "var(--accent)" : "var(--panel)",
@@ -226,6 +240,7 @@ export default function FoodDetail({ food, meal, onMealChange, onAdd, onDeleted 
             onClick={() => {
               if (!confirmDelete) return setConfirmDelete(true);
               deleteCustomFood(food.id);
+              dropFavorite(food.id);
               onDeleted?.();
             }}
             className="flex-1 py-2 rounded-lg text-xs font-semibold cursor-pointer"

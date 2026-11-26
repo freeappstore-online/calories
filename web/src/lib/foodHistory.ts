@@ -1,4 +1,4 @@
-import { findFood, servingsFor } from "./customFoods";
+import { defaultServingIndex, findFood, servingsFor } from "./customFoods";
 import type { FoodEntry, MealType } from "../data/types";
 import { getAllLogs } from "./storage";
 import { scaleMicros, scaleNutrition } from "./nutrition";
@@ -69,6 +69,17 @@ export function getFavorites(): string[] {
   }
 }
 
+/** Removes a food id from the favorites, e.g. after a custom food is deleted */
+export function dropFavorite(foodId: string): void {
+  const favs = getFavorites();
+  if (!favs.includes(foodId)) return;
+  try {
+    localStorage.setItem(FAVORITES_KEY, JSON.stringify(favs.filter((f) => f !== foodId)));
+  } catch {
+    // storage unavailable: the stale id is skipped on read anyway
+  }
+}
+
 export function toggleFavorite(foodId: string): string[] {
   const favs = getFavorites();
   const next = favs.includes(foodId) ? favs.filter((f) => f !== foodId) : [...favs, foodId];
@@ -88,14 +99,15 @@ export function getFavoriteTemplates(favorites: string[]): FoodTemplate[] {
   }
   const result: FoodTemplate[] = [];
   for (const id of favorites) {
+    const food = findFood(id);
+    if (!food) continue;
     const logged = latest.get(id);
     if (logged) {
       result.push(toTemplate(logged));
       continue;
     }
-    const food = findFood(id);
-    if (!food) continue;
-    const portionGrams = servingsFor(food)?.[0]?.grams ?? 100;
+    const servings = servingsFor(food);
+    const portionGrams = servings?.[defaultServingIndex(servings) ?? -1]?.grams ?? 100;
     result.push({ foodId: id, name: food.name, portionGrams, ...scaleNutrition(food, portionGrams), micros: scaleMicros(food, portionGrams) });
   }
   return result;

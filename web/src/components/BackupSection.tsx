@@ -13,7 +13,8 @@ function download(filename: string, content: string, type: string) {
   document.body.appendChild(a);
   a.click();
   a.remove();
-  URL.revokeObjectURL(url);
+  // iOS Safari starts the download asynchronously; revoking immediately cancels it
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
 
 const btn = "px-3 py-2 rounded-lg text-sm font-medium cursor-pointer";
@@ -29,7 +30,14 @@ export default function BackupSection() {
     setPending(null);
     setMode(null);
     if (!file) return;
-    const result = parseBackup(await file.text());
+    let text: string;
+    try {
+      text = await file.text();
+    } catch {
+      setMessage({ text: "Could not read this file.", error: true });
+      return;
+    }
+    const result = parseBackup(text);
     if (!result.ok) {
       setMessage({ text: result.error, error: true });
       return;
@@ -40,7 +48,11 @@ export default function BackupSection() {
 
   const handleImport = () => {
     if (!pending || !mode) return;
-    applyBackup(pending.backup, mode);
+    const result = applyBackup(pending.backup, mode);
+    if (!result.ok) {
+      setMessage({ text: result.error, error: true });
+      return;
+    }
     setMessage({ text: "Import complete. Reloading...", error: false });
     setPending(null);
     window.location.reload();

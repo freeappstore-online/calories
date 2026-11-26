@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FoodItem, MealType, FoodEntry } from "../data/types";
 import { today, formatDate } from "../lib/dates";
 import FoodBrowser from "./FoodBrowser";
@@ -20,11 +20,15 @@ export default function FoodsView({ date, onAdd }: FoodsViewProps) {
   /** Bumped after a custom food is deleted so the browser reloads its list */
   const [browserKey, setBrowserKey] = useState(0);
 
+  const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(toastTimer.current), []);
+
   const handleAdd = (entry: FoodEntry) => {
     onAdd(entry);
     setAdded(`${entry.name} added to ${entry.meal}${date === today() ? "" : ` on ${formatDate(date)}`}`);
     setSelectedFood(null);
-    setTimeout(() => setAdded(null), 2500);
+    clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setAdded(null), 2500);
   };
 
   return (

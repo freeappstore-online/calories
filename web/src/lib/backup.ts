@@ -1,10 +1,13 @@
 import type { DailyLog } from "../data/types";
+import { isValidCustomFood } from "./customFoods";
 
 const PREFIX = "calories_";
 const LOGS_KEY = "calories_logs";
 const GOALS_KEY = "calories_goals";
 const PROFILE_KEY = "calories_profile";
 const MEALS_KEY = "calories_saved_meals";
+const CUSTOM_FOODS_KEY = "calories_custom_foods";
+const FAVORITES_KEY = "calories_favorites";
 
 export interface Backup {
   app: "calories";
@@ -28,6 +31,23 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 
 function hasId(v: unknown): v is { id: string } {
   return isRecord(v) && typeof v.id === "string";
+}
+
+const MEAL_TYPES = new Set(["breakfast", "lunch", "dinner", "snacks"]);
+const ENTRY_NUMBERS = ["portionGrams", "calories", "protein", "carbs", "fat", "fiber", "sugar"] as const;
+const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/;
+
+const isNum = (v: unknown) => typeof v === "number" && Number.isFinite(v);
+
+/** A log entry the app can render and sum; `id` is optional for saved-meal entries */
+function isValidEntry(v: unknown, needsId: boolean): boolean {
+  if (!isRecord(v)) return false;
+  if (needsId ? typeof v.id !== "string" : v.id !== undefined && typeof v.id !== "string") return false;
+  if (typeof v.name !== "string" || !MEAL_TYPES.has(v.meal as string)) return false;
+  if (v.foodId !== null && typeof v.foodId !== "string") return false;
+  if (!ENTRY_NUMBERS.every((k) => isNum(v[k]))) return false;
+  if (v.micros !== undefined && !(isRecord(v.micros) && Object.values(v.micros).every((m) => m === null || isNum(m)))) return false;
+  return true;
 }
 
 function appKeys(): string[] {
@@ -77,12 +97,34 @@ export function parseBackup(text: string): ParseResult {
     return { ok: false, error: "The backup contains unexpected keys." };
   }
   const logs = data[LOGS_KEY];
-  if (logs !== undefined && !(isRecord(logs) && Object.values(logs).every((l) => isRecord(l) && Array.isArray(l.entries)))) {
+  if (
+    logs !== undefined &&
+    !(
+      isRecord(logs) &&
+      Object.entries(logs).every(
+        ([date, l]) => DATE_KEY.test(date) && isRecord(l) && Array.isArray(l.entries) && l.entries.every((e) => isValidEntry(e, true)),
+      )
+    )
+  ) {
     return { ok: false, error: "The backup's food log is malformed." };
   }
   const meals = data[MEALS_KEY];
-  if (meals !== undefined && !Array.isArray(meals)) {
+  if (
+    meals !== undefined &&
+    !(Array.isArray(meals) && meals.every((m) => isRecord(m) && typeof m.id === "string" && typeof m.name === "string" && Array.isArray(m.entries) && m.entries.every((e: unknown) => isValidEntry(e, false))))
+  ) {
     return { ok: false, error: "The backup's saved meals are malformed." };
+  }
+  const customFoods = data[CUSTOM_FOODS_KEY];
+  if (customFoods !== undefined && !(Array.isArray(customFoods) && customFoods.every(isValidCustomFood))) {
+    return { ok: false, error: "The backup's custom foods are malformed." };
+  }
+  const favorites = data[FAVORITES_KEY];
+  if (favorites !== undefined && !(Array.isArray(favorites) && favorites.every((f) => typeof f === "string"))) {
+    return { ok: false, error: "The backup's favorites are malformed." };
+  }
+  for (const key of [GOALS_KEY, PROFILE_KEY]) {
+    if (data[key] !== undefined && !isRecord(data[key])) return { ok: false, error: "The backup's goals or profile are malformed." };
   }
   const backup: Backup = {
     app: "calories",
@@ -102,7 +144,8 @@ export function parseBackup(text: string): ParseResult {
 function mergeLogs(local: unknown, incoming: Record<string, DailyLog>): Record<string, DailyLog> {
   const out: Record<string, DailyLog> = isRecord(local) ? { ...(local as Record<string, DailyLog>) } : {};
   for (const [date, inLog] of Object.entries(incoming)) {
-    const localEntries = out[date]?.entries ?? [];
+    const existing = out[date]?.entries;
+    const localEntries = Array.isArray(existing) ? existing : [];
     const ids = new Set(inLog.entries.map((e) => e.id));
     out[date] = { ...inLog, entries: [...inLog.entries, ...localEntries.filter((e) => !ids.has(e.id))] };
   }
@@ -120,21 +163,51 @@ function mergeArrays(local: unknown, incoming: unknown[]): unknown[] {
   return [...new Set([...base, ...incoming])];
 }
 
-export function applyBackup(backup: Backup, mode: "merge" | "replace"): void {
-  if (mode === "replace") {
-    for (const key of appKeys()) localStorage.removeItem(key);
-  }
+export type ApplyResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * Computes every new value first, then writes them. If any write fails (storage full) the
+ * previous values are restored, so a failed import never leaves the app with partial data.
+ * Replace only removes stale keys after every new value is stored.
+ */
+export function applyBackup(backup: Backup, mode: "merge" | "replace"): ApplyResult {
+  const next: [string, string][] = [];
   for (const [key, value] of Object.entries(backup.data)) {
-    let next = value;
+    let v = value;
     if (mode === "merge") {
-      if (key === LOGS_KEY) next = mergeLogs(readKey(key), value as Record<string, DailyLog>);
-      else if (Array.isArray(value)) next = mergeArrays(readKey(key), value);
+      if (key === LOGS_KEY) v = mergeLogs(readKey(key), value as Record<string, DailyLog>);
+      else if (Array.isArray(value)) v = mergeArrays(readKey(key), value);
     }
-    localStorage.setItem(key, JSON.stringify(next));
+    next.push([key, JSON.stringify(v)]);
   }
+  const before = new Map(appKeys().map((k) => [k, localStorage.getItem(k)] as const));
+  const touched = new Set<string>();
+  try {
+    for (const [key, json] of next) {
+      touched.add(key);
+      localStorage.setItem(key, json);
+    }
+    if (mode === "replace") {
+      for (const key of before.keys()) if (!(key in backup.data)) localStorage.removeItem(key);
+    }
+  } catch {
+    try {
+      for (const key of touched) {
+        const old = before.get(key);
+        if (old === undefined || old === null) localStorage.removeItem(key);
+        else localStorage.setItem(key, old);
+      }
+    } catch {
+      // restoring only rewrites values that were stored before, so it cannot normally fail
+    }
+    return { ok: false, error: "Could not import: browser storage is full. Your current data is unchanged." };
+  }
+  return { ok: true };
 }
 
+/** Spreadsheets run cells starting with = + - @ as formulas; a leading ' keeps them text */
 function csvCell(s: string): string {
+  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
   return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 

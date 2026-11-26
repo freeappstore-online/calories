@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import type { CustomFood } from "../data/types";
-import { CUSTOM_IMAGE, newCustomId, saveCustomFood } from "../lib/customFoods";
+import { CUSTOM_IMAGE, isValidGrams, MAX_CUSTOM_VALUE, MAX_GRAMS, MIN_GRAMS, newCustomId, saveCustomFood } from "../lib/customFoods";
 import { MICRO_DEFS } from "../data/types";
 import { parseLabel } from "../lib/labelParser";
 import { OPEN_LABEL_SCANNER_EVENT, scanLabelImage, useLabelScanner } from "../lib/labelScanner";
@@ -93,14 +93,16 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
     const name = get("name").trim();
     if (name.length < 1 || name.length > 60) return setError("Name is required (up to 60 characters).");
     const grams = parseField(get("servingGrams"));
-    if (grams.error || !grams.value || grams.value <= 0) return setError("Serving size must be a number above 0 grams.");
+    if (grams.error || grams.value === null || !isValidGrams(grams.value)) return setError(`Serving size must be from ${MIN_GRAMS} to ${MAX_GRAMS} grams.`);
     const calories = parseField(get("calories"));
     if (calories.error || calories.value === null) return setError("Calories are required and must be a number, 0 or more.");
+    if (calories.value > MAX_CUSTOM_VALUE) return setError(`Values can be at most ${MAX_CUSTOM_VALUE} per serving.`);
 
     const perServing: Record<string, number | null> = { calories: calories.value };
     for (const key of [...MACROS.map((m) => m.key), ...MICRO_DEFS.map((m) => m.key)]) {
       const parsed = parseField(get(key));
       if (parsed.error) return setError("Nutrient values must be numbers, 0 or more.");
+      if (parsed.value !== null && parsed.value > MAX_CUSTOM_VALUE) return setError(`Values can be at most ${MAX_CUSTOM_VALUE} per serving.`);
       perServing[key] = parsed.value;
     }
 
