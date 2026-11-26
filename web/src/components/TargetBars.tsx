@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import { useTargets } from "../lib/targets";
 import { getSettings } from "../lib/settings";
+import { FAT_COLOR } from "../lib/colors";
 
 type BarKey = "calories" | "protein" | "carbs" | "fat" | "sugar";
 type Totals = Record<BarKey, number>;
@@ -10,7 +11,7 @@ const CALORIES = { label: "Calories", unit: " kcal", color: "#8b5cf6" };
 const MACROS: { key: BarKey; label: string; unit: string; color: string }[] = [
   { key: "protein", label: "Protein", unit: "g", color: "#3b82f6" },
   { key: "carbs", label: "Carbs", unit: "g", color: "#f59e0b" },
-  { key: "fat", label: "Fat", unit: "g", color: "#ef4444" },
+  { key: "fat", label: "Fat", unit: "g", color: FAT_COLOR },
   { key: "sugar", label: "Sugar", unit: "g", color: "#ec4899" },
 ];
 
@@ -46,7 +47,8 @@ function Bar({
       aria-label={`${label}: ${shown}${unit} of ${Math.round(target)}${unit}`}
       aria-valuenow={shown}
       aria-valuemin={0}
-      aria-valuemax={Math.round(target)}
+      aria-valuemax={Math.max(shown, Math.round(target))}
+      aria-valuetext={over ? `${-diff}${unit} over` : `${diff}${unit} left`}
     >
       {/* Tinted fill keeps the text on top legible; the bottom strip shows the exact level */}
       <div className="absolute inset-y-0" style={{ ...at(0, fill), background: `color-mix(in srgb, ${color} 35%, transparent)` }} />
@@ -60,9 +62,9 @@ function Bar({
           <div className="absolute bottom-0 h-[3px]" style={{ ...at(targetPos, excess), background: "var(--error)" }} />
         </>
       )}
-      {/* Goal marker: ticks at the top and bottom edges, leaving the middle clear for the text */}
-      <div className="absolute top-0 h-2 w-0.5" style={{ left: `calc(${targetPos}% - 1px)`, background: "var(--ink)" }} />
-      <div className="absolute bottom-0 h-2 w-0.5" style={{ left: `calc(${targetPos}% - 1px)`, background: "var(--ink)" }} />
+      {/* Goal marker: short ticks at the top and bottom edges, clear of the text line between */}
+      <div className="absolute top-0 h-1.5 w-0.5" style={{ left: `calc(${targetPos}% - 1px)`, background: "var(--ink)" }} />
+      <div className="absolute bottom-0 h-1.5 w-0.5" style={{ left: `calc(${targetPos}% - 1px)`, background: "var(--ink)" }} />
       <div className="relative h-full flex items-center justify-between px-2.5 text-xs">
         <span className="font-semibold truncate" style={{ color: "var(--ink)" }}>
           {label}{" "}
@@ -92,20 +94,31 @@ export default function TargetBars({ totals, onOpen }: { totals: Totals; onOpen:
     ...MACROS.map((m) => Math.max(totals[m.key], targets[m.key])),
   );
   return (
-    <button
-      type="button"
+    // The whole block is tappable, but the real button is the footer: a button's children are
+    // hidden from screen readers, which would hide the meters
+    <div
       onClick={onOpen}
-      aria-label="Show the full nutrition breakdown"
-      className="block w-full text-left rounded-xl p-2 space-y-1.5 cursor-pointer"
+      className="w-full rounded-xl p-2 space-y-1.5 cursor-pointer"
       style={{ background: "var(--panel)", border: "1px solid var(--line)" }}
     >
       <Bar {...CALORIES} value={totals.calories} target={targets.calories} scale={kcalScale} />
       {MACROS.map((m) => (
         <Bar key={m.key} label={m.label} unit={m.unit} color={m.color} value={totals[m.key]} target={targets[m.key]} scale={gramScale} />
       ))}
-      <div className="text-[0.625rem] text-right px-1" style={{ color: "var(--muted)" }}>
-        protein · carbs · fat · sugar to scale: full width = {Math.round(gramScale)} g · tap for full breakdown
+      <div className="flex items-center justify-between gap-2 px-1 text-[0.625rem]" style={{ color: "var(--muted)" }}>
+        <span>protein · carbs · fat · sugar to scale: full width = {Math.round(gramScale)} g</span>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpen();
+          }}
+          className="shrink-0 cursor-pointer underline"
+          style={{ background: "none", border: "none", padding: 0, color: "inherit", font: "inherit" }}
+        >
+          Full breakdown
+        </button>
       </div>
-    </button>
+    </div>
   );
 }

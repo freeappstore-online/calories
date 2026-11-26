@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { MICRO_DEFS } from "../data/types";
 import type { TargetKey, TargetOverrides, UserProfile } from "../data/types";
-import { formatMicro } from "../lib/nutrition";
 import { computeTargets, recommendedTargets } from "../lib/targets";
 
 const MACRO_ROWS: { key: TargetKey; label: string; unit: string }[] = [
@@ -19,8 +18,8 @@ const MICRO_ROWS: { key: TargetKey; label: string; unit: string }[] = MICRO_DEFS
   unit: m.unit,
 }));
 
-/** Whole numbers, except the tiny micro amounts (B12 is 2.4 µg) */
-const show = (n: number) => String(formatMicro(n));
+/** Whole numbers, except amounts under 10 that rounding would misstate (B12 is 2.4 µg) */
+const show = (n: number) => String(n < 10 ? Math.round(n * 10) / 10 : Math.round(n));
 
 interface RowProps {
   label: string;
@@ -48,6 +47,7 @@ function TargetRow({ label, unit, value, recommended, overridden, onChange, onRe
       <input
         type="number"
         inputMode="decimal"
+        step="any"
         aria-label={`${label} target`}
         value={editing ?? show(value)}
         onFocus={() => setEditing(show(value))}
@@ -66,19 +66,16 @@ function TargetRow({ label, unit, value, recommended, overridden, onChange, onRe
         min={0}
       />
       <span className="w-8" style={{ color: "var(--muted)" }}>{unit}</span>
-      <button
-        onClick={onReset}
-        disabled={!overridden}
-        aria-label={`Reset ${label} to recommended`}
-        className="w-14 text-[0.6875rem] cursor-pointer text-right disabled:cursor-default"
-        style={{
-          background: "none",
-          border: "none",
-          color: overridden ? "var(--accent)" : "transparent",
-        }}
-      >
-        Reset
-      </button>
+      {overridden && (
+        <button
+          onClick={onReset}
+          aria-label={`Reset ${label} to recommended`}
+          className="text-[0.6875rem] cursor-pointer text-right"
+          style={{ background: "none", border: "none", color: "var(--accent)" }}
+        >
+          Reset
+        </button>
+      )}
     </div>
   );
 }

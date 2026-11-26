@@ -4,12 +4,13 @@ import type { FoodEntry } from "../data/types";
 import { formatMicro, sumEntries, sumMicros } from "../lib/nutrition";
 import { useTargets } from "../lib/targets";
 import Modal from "./Modal";
+import { FAT_COLOR } from "../lib/colors";
 
 const MACROS = [
   { key: "calories", label: "Calories", unit: " kcal", color: "#8b5cf6" },
   { key: "protein", label: "Protein", unit: "g", color: "#3b82f6" },
   { key: "carbs", label: "Carbs", unit: "g", color: "#f59e0b" },
-  { key: "fat", label: "Fat", unit: "g", color: "#ef4444" },
+  { key: "fat", label: "Fat", unit: "g", color: FAT_COLOR },
   { key: "fiber", label: "Fiber", unit: "g", color: "var(--accent)" },
   { key: "sugar", label: "Sugar", unit: "g", color: "#ec4899", limit: true },
 ] as const;

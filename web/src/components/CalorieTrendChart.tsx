@@ -1,5 +1,6 @@
 import { useRef, useEffect } from "react";
 import { formatDateShort } from "../lib/dates";
+import { useRedraw } from "../lib/useRedraw";
 
 interface DataPoint {
   date: string;
@@ -19,6 +20,7 @@ export default function CalorieTrendChart({
 }: CalorieTrendChartProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const redraw = useRedraw(containerRef);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -40,6 +42,7 @@ export default function CalorieTrendChart({
     const mutedColor = style.getPropertyValue("--muted").trim() || "#6b7280";
     const lineColor = style.getPropertyValue("--line").trim() || "#e5e7eb";
     const accentColor = style.getPropertyValue("--accent").trim() || "#2563eb";
+    const errorColor = style.getPropertyValue("--error").trim() || "#ef4444";
 
     const padding = { top: 20, right: 16, bottom: 40, left: 44 };
     const chartW = width - padding.left - padding.right;
@@ -127,9 +130,7 @@ export default function CalorieTrendChart({
       const y = padding.top + chartH * (1 - d.calories / maxCal);
       ctx.beginPath();
       ctx.arc(x, y, 3.5, 0, Math.PI * 2);
-      ctx.fillStyle = d.calories > goal ? "var(--error)" : accentColor;
-      // Can't use CSS vars directly in canvas — use the resolved colors
-      ctx.fillStyle = d.calories > goal ? "#ef4444" : accentColor;
+      ctx.fillStyle = d.calories > goal ? errorColor : accentColor;
       ctx.fill();
       ctx.strokeStyle = inkColor === "#f5f5f5" ? "#0f0f0f" : "#ffffff";
       ctx.lineWidth = 1.5;
@@ -146,7 +147,7 @@ export default function CalorieTrendChart({
       ctx.textAlign = "center";
       ctx.fillText(formatDateShort(d.date), x, height - padding.bottom + 18);
     });
-  }, [data, goal, height]);
+  }, [data, goal, height, redraw]);
 
   return (
     <div ref={containerRef} className="w-full">

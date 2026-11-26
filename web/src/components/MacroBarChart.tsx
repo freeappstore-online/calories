@@ -1,5 +1,7 @@
 import { useRef, useEffect } from "react";
 import { formatDateShort } from "../lib/dates";
+import { useRedraw } from "../lib/useRedraw";
+import { FAT_COLOR } from "../lib/colors";
 
 interface DayMacros {
   date: string;
@@ -19,6 +21,7 @@ export default function MacroBarChart({
 }: MacroBarChartProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const redraw = useRedraw(containerRef);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -72,7 +75,7 @@ export default function MacroBarChart({
     const barGroupW = chartW / data.length;
     const barW = Math.min(barGroupW * 0.22, 16);
     const gap = 2;
-    const colors = ["#3b82f6", "#f59e0b", "#ef4444"];
+    const colors = ["#3b82f6", "#f59e0b", FAT_COLOR];
 
     data.forEach((d, i) => {
       const groupX = padding.left + i * barGroupW + barGroupW / 2;
@@ -106,7 +109,7 @@ export default function MacroBarChart({
         ctx.fillText(formatDateShort(d.date), groupX, height - padding.bottom + 18);
       }
     });
-  }, [data, height]);
+  }, [data, height, redraw]);
 
   return (
     <div ref={containerRef} className="w-full">

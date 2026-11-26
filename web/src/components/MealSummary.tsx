@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import type { FoodEntry } from "../data/types";
 import { sumEntries } from "../lib/nutrition";
 import MacroPieChart from "./MacroPieChart";
+import { FAT_COLOR } from "../lib/colors";
 
 interface MealSummaryProps {
   label: string;
@@ -22,7 +23,7 @@ export default function MealSummary({ label, entries, stepGrams, onStep, onOpen 
   const stats = [
     { label: "protein", value: t.protein, color: "#3b82f6" },
     { label: "carbs", value: t.carbs, color: "#f59e0b" },
-    { label: "fat", value: t.fat, color: "#ef4444" },
+    { label: "fat", value: t.fat, color: FAT_COLOR },
     { label: "fiber", value: t.fiber, color: "var(--ink)" },
     { label: "sugar", value: t.sugar, color: "var(--ink)" },
   ];

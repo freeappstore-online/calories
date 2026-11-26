@@ -1,11 +1,12 @@
 import { useState, useMemo } from "react";
 import type { DailyGoals } from "../data/types";
 import { lastNDays, today, formatDate } from "../lib/dates";
-import { getLog } from "../lib/storage";
+import { getAllLogs } from "../lib/storage";
 import { sumEntries } from "../lib/nutrition";
 import MacroPieChart from "./MacroPieChart";
 import CalorieTrendChart from "./CalorieTrendChart";
 import MacroBarChart from "./MacroBarChart";
+import { FAT_COLOR } from "../lib/colors";
 
 interface DashboardViewProps {
   date: string;
@@ -17,65 +18,36 @@ type RangeOption = 7 | 14 | 30;
 export default function DashboardView({ date, goals }: DashboardViewProps) {
   const [range, setRange] = useState<RangeOption>(7);
 
-  // Today's totals
-  const todayLog = useMemo(() => getLog(date), [date]);
-  const todayTotals = useMemo(() => sumEntries(todayLog.entries), [todayLog]);
+  // The whole history is parsed once; each day is then looked up and summed from it
+  const logs = useMemo(() => getAllLogs(), [date]);
+  const totalsFor = (d: string) => {
+    const log = logs[d];
+    return sumEntries(log && Array.isArray(log.entries) ? log.entries : []);
+  };
 
-  // Historical data
+  const todayTotals = useMemo(() => totalsFor(date), [logs, date]);
+
   const dates = useMemo(() => lastNDays(range, date), [range, date]);
-
-  const trendData = useMemo(
-    () =>
-      dates.map((d) => {
-        const log = getLog(d);
-        const totals = sumEntries(log.entries);
-        return { date: d, calories: totals.calories };
-      }),
-    [dates],
-  );
-
+  const days = useMemo(() => dates.map((d) => ({ date: d, ...totalsFor(d) })), [logs, dates]);
+  const trendData = useMemo(() => days.map((d) => ({ date: d.date, calories: d.calories })), [days]);
   const macroData = useMemo(
-    () =>
-      dates.map((d) => {
-        const log = getLog(d);
-        const totals = sumEntries(log.entries);
-        return { date: d, protein: totals.protein, carbs: totals.carbs, fat: totals.fat };
-      }),
-    [dates],
+    () => days.map((d) => ({ date: d.date, protein: d.protein, carbs: d.carbs, fat: d.fat })),
+    [days],
   );
 
-  // Averages
-  const avgCalories = useMemo(() => {
-    const daysWithData = trendData.filter((d) => d.calories > 0);
-    if (daysWithData.length === 0) return 0;
-    return Math.round(
-      daysWithData.reduce((sum, d) => sum + d.calories, 0) / daysWithData.length,
-    );
-  }, [trendData]);
-
-  const avgProtein = useMemo(() => {
-    const daysWithData = macroData.filter((d) => d.protein > 0);
-    if (daysWithData.length === 0) return 0;
-    return Math.round(
-      daysWithData.reduce((sum, d) => sum + d.protein, 0) / daysWithData.length,
-    );
-  }, [macroData]);
-
-  const avgCarbs = useMemo(() => {
-    const daysWithData = macroData.filter((d) => d.carbs > 0);
-    if (daysWithData.length === 0) return 0;
-    return Math.round(
-      daysWithData.reduce((sum, d) => sum + d.carbs, 0) / daysWithData.length,
-    );
-  }, [macroData]);
-
-  const avgFat = useMemo(() => {
-    const daysWithData = macroData.filter((d) => d.fat > 0);
-    if (daysWithData.length === 0) return 0;
-    return Math.round(
-      daysWithData.reduce((sum, d) => sum + d.fat, 0) / daysWithData.length,
-    );
-  }, [macroData]);
+  // Averages: every figure covers the same set of logged days
+  const avg = useMemo(() => {
+    const logged = days.filter((d) => d.calories > 0);
+    const mean = (pick: (d: (typeof days)[number]) => number) =>
+      logged.length === 0 ? 0 : Math.round(logged.reduce((sum, d) => sum + pick(d), 0) / logged.length);
+    return {
+      calories: mean((d) => d.calories),
+      protein: mean((d) => d.protein),
+      carbs: mean((d) => d.carbs),
+      fat: mean((d) => d.fat),
+    };
+  }, [days]);
+  const { calories: avgCalories, protein: avgProtein, carbs: avgCarbs, fat: avgFat } = avg;
 
   return (
     <div className="space-y-4">
@@ -173,7 +145,7 @@ export default function DashboardView({ date, goals }: DashboardViewProps) {
             </div>
           </div>
           <div className="text-center">
-            <div className="text-xl font-bold" style={{ color: "#ef4444" }}>
+            <div className="text-xl font-bold" style={{ color: FAT_COLOR }}>
               {avgFat}g
             </div>
             <div className="text-[0.625rem]" style={{ color: "var(--muted)" }}>

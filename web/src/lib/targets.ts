@@ -31,25 +31,36 @@ function microTargets(p: UserProfile): Record<MicroKey, number> {
 
 /** Recommended targets for a profile, scaled to the given calories (default: the suggested intake) */
 export function recommendedTargets(profile: UserProfile | null, calories?: number): Targets {
-  if (!profile) return calories ? { ...DEFAULT_TARGETS, calories } : DEFAULT_TARGETS;
-  const kcal = calories ?? suggestCalories(profile);
-  const protein = Math.round(profile.weight * (profile.weightGoal === "maintain" ? 1.2 : 1.6));
-  const fat = Math.round((kcal * 0.3) / 9);
+  const kcal = calories ?? (profile ? suggestCalories(profile) : DEFAULT_TARGETS.calories);
+  // Without a profile, the default protein and fat scale with the calories
+  const scale = kcal / DEFAULT_TARGETS.calories;
+  const protein = profile
+    ? Math.round(profile.weight * (profile.weightGoal === "maintain" ? 1.2 : 1.6))
+    : Math.round(DEFAULT_TARGETS.protein * scale);
+  const fat = profile ? Math.round((kcal * 0.3) / 9) : Math.round(DEFAULT_TARGETS.fat * scale);
   return {
-    ...microTargets(profile),
+    ...(profile ? microTargets(profile) : DEFAULT_TARGETS),
     calories: kcal,
     protein,
     fat,
-    carbs: Math.max(0, Math.round((kcal - protein * 4 - fat * 9) / 4)),
+    carbs: carbsFor(kcal, protein, fat),
     fiber: Math.round((kcal / 1000) * 14),
     sugar: Math.round((kcal * 0.1) / 4),
   };
 }
 
+/** What is left for carbs once protein and fat are accounted for */
+const carbsFor = (kcal: number, protein: number, fat: number) =>
+  Math.max(0, Math.round((kcal - protein * 4 - fat * 9) / 4));
+
 /** Recommended targets with the user's own values on top; the rest follow the profile */
 export function computeTargets(profile: UserProfile | null, overrides: TargetOverrides): Targets {
-  const kcal = overrides.calories ?? (profile ? suggestCalories(profile) : DEFAULT_TARGETS.calories);
-  return { ...recommendedTargets(profile, kcal), ...overrides };
+  const merged = { ...recommendedTargets(profile, overrides.calories), ...overrides };
+  // A protein or fat choice changes what is left for carbs, unless carbs were chosen too
+  if (overrides.carbs === undefined && (overrides.protein !== undefined || overrides.fat !== undefined)) {
+    merged.carbs = carbsFor(merged.calories, merged.protein, merged.fat);
+  }
+  return merged;
 }
 
 /** The targets in effect, for the cards that show % of target */

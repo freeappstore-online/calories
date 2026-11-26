@@ -3,6 +3,7 @@ import type { FoodEntry, MealType } from "../data/types";
 import { servingSizes } from "../data";
 import { rescaleEntry } from "../lib/entryEdit";
 import Modal from "./Modal";
+import { FAT_COLOR } from "../lib/colors";
 
 const MEALS: { id: MealType; label: string }[] = [
   { id: "breakfast", label: "Breakfast" },
@@ -114,7 +115,7 @@ export default function EditEntryModal({ entry, onSave, onClose }: EditEntryModa
                 ["cal", gramsValid ? String(Math.round(preview.calories)) : "–", "var(--accent)"],
                 ["protein", gramsValid ? `${Math.round(preview.protein)}g` : "–", "#3b82f6"],
                 ["carbs", gramsValid ? `${Math.round(preview.carbs)}g` : "–", "#f59e0b"],
-                ["fat", gramsValid ? `${Math.round(preview.fat)}g` : "–", "#ef4444"],
+                ["fat", gramsValid ? `${Math.round(preview.fat)}g` : "–", FAT_COLOR],
               ].map(([label, val, color]) => (
                 <div key={label}>
                   <div className="text-sm font-bold" style={{ color }}>{val}</div>

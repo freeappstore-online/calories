@@ -1,4 +1,6 @@
 import { useRef, useEffect } from "react";
+import { useRedraw } from "../lib/useRedraw";
+import { FAT_COLOR } from "../lib/colors";
 
 interface MacroPieChartProps {
   protein: number;
@@ -20,6 +22,13 @@ export default function MacroPieChart({
   compact = false,
 }: MacroPieChartProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
+  const redraw = useRedraw(boxRef);
+  // Shares are of energy (4 / 4 / 9 kcal per gram), not of grams
+  const pKcal = protein * 4;
+  const cKcal = carbs * 4;
+  const fKcal = fat * 9;
+  const total = pKcal + cKcal + fKcal;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -33,7 +42,6 @@ export default function MacroPieChart({
     ctx.scale(dpr, dpr);
 
     const ring = Math.round(size * 0.155);
-    const total = protein + carbs + fat;
     if (total === 0) {
       // Empty state
       ctx.beginPath();
@@ -46,9 +54,9 @@ export default function MacroPieChart({
     }
 
     const slices = [
-      { value: protein, color: "#3b82f6" }, // blue
-      { value: carbs, color: "#f59e0b" }, // amber
-      { value: fat, color: "#ef4444" }, // red
+      { value: pKcal, color: "#3b82f6" }, // blue
+      { value: cKcal, color: "#f59e0b" }, // amber
+      { value: fKcal, color: FAT_COLOR },
     ];
 
     const cx = size / 2;
@@ -67,16 +75,15 @@ export default function MacroPieChart({
       ctx.fill();
       startAngle += angle;
     }
-  }, [protein, carbs, fat, size]);
+  }, [pKcal, cKcal, fKcal, total, size, redraw]);
 
-  const total = protein + carbs + fat;
-  const pPct = total > 0 ? Math.round((protein / total) * 100) : 0;
-  const cPct = total > 0 ? Math.round((carbs / total) * 100) : 0;
+  const pPct = total > 0 ? Math.round((pKcal / total) * 100) : 0;
+  const cPct = total > 0 ? Math.round((cKcal / total) * 100) : 0;
   const fPct = total > 0 ? 100 - pPct - cPct : 0;
 
   return (
     <div className="flex flex-col items-center gap-3">
-      <div className="relative">
+      <div ref={boxRef} className="relative">
         <canvas
           ref={canvasRef}
           style={{ width: size, height: size }}
@@ -102,7 +109,7 @@ export default function MacroPieChart({
           <span style={{ color: "var(--muted)" }}>C {cPct}%</span>
         </div>
         <div className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />
+          <span className="w-2 h-2 rounded-full inline-block" style={{ background: FAT_COLOR }} />
           <span style={{ color: "var(--muted)" }}>F {fPct}%</span>
         </div>
       </div>}

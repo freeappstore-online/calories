@@ -5,6 +5,7 @@ import type { FoodItem, MealType, FoodEntry } from "../data/types";
 import { formatMicro, scaleMicros, scaleNutrition } from "../lib/nutrition";
 import { useTargets } from "../lib/targets";
 import FoodIcon from "./FoodIcon";
+import { FAT_COLOR } from "../lib/colors";
 
 const MEALS: { id: MealType; label: string }[] = [
   { id: "breakfast", label: "Breakfast" },
@@ -128,7 +129,7 @@ export default function FoodDetail({ food, meal, onMealChange, onAdd, onDeleted 
           <div className="text-[0.625rem]" style={{ color: "var(--muted)" }}>carbs</div>
         </div>
         <div>
-          <div className="text-sm font-semibold" style={{ color: "#ef4444" }}>
+          <div className="text-sm font-semibold" style={{ color: FAT_COLOR }}>
             {Math.round(preview.fat)}g
           </div>
           <div className="text-[0.625rem]" style={{ color: "var(--muted)" }}>fat</div>

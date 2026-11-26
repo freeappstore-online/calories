@@ -125,17 +125,14 @@ export function calculateTDEE(profile: UserProfile): number {
   return Math.round(bmr * activityMultipliers[profile.activityLevel]);
 }
 
-/** Suggest calorie target based on weight goal */
+/** Never suggest less than this; below it a diet needs medical supervision */
+export const MIN_CALORIES = 1200;
+
+/** Suggest calorie target based on weight goal (-500 lose, +300 lean bulk), never below MIN_CALORIES */
 export function suggestCalories(profile: UserProfile): number {
   const tdee = calculateTDEE(profile);
-  switch (profile.weightGoal) {
-    case "lose":
-      return Math.round(tdee - 500); // ~0.5kg/week loss
-    case "gain":
-      return Math.round(tdee + 300); // lean bulk
-    case "maintain":
-      return tdee;
-  }
+  const kcal = profile.weightGoal === "lose" ? tdee - 500 : profile.weightGoal === "gain" ? tdee + 300 : tdee;
+  return Math.max(MIN_CALORIES, Math.round(kcal));
 }
 
 /** Calculate BMI from profile */

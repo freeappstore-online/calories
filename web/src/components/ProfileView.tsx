@@ -54,10 +54,12 @@ export default function ProfileView({ profile, onSave, overrides, onOverridesCha
     ageText.trim() !== "" &&
     weightText.trim() !== "" &&
     (useImperial ? ftText.trim() !== "" && inText.trim() !== "" : heightText.trim() !== "") &&
-    age >= 1 &&
+    age >= 10 &&
     age <= 120 &&
-    weight > 0 &&
-    height > 0 &&
+    weight >= 20 &&
+    weight <= 400 &&
+    height >= 90 &&
+    height <= 250 &&
     (!useImperial || Number(inText) <= 11);
 
   const currentProfile: UserProfile = {
@@ -314,6 +316,11 @@ export default function ProfileView({ profile, onSave, overrides, onOverridesCha
       >
         Save profile
       </button>
+      {!valid && (
+        <p className="text-[0.6875rem] text-center" style={{ color: "var(--muted)" }}>
+          Enter an age of 10–120, a weight of 20–400 kg (44–880 lb) and a height of 90–250 cm (3 ft–8 ft 2 in).
+        </p>
+      )}
 
       <AppearanceSettings />
       <PortionStepsSettings />
