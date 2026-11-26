@@ -17,9 +17,12 @@ export default function FoodSearch({ meal, onAdd, onClose }: FoodSearchProps) {
   const [quickCalories, setQuickCalories] = useState("");
   const [quickName, setQuickName] = useState("");
 
+  const quickCal = Math.round(Number(quickCalories));
+  const quickCalValid = quickCalories.trim() !== "" && Number.isFinite(quickCal) && quickCal > 0;
+
   const handleQuickAdd = () => {
-    const cal = parseInt(quickCalories, 10);
-    if (isNaN(cal) || cal <= 0) return;
+    if (!quickCalValid) return;
+    const cal = quickCal;
     onAdd({
       id: crypto.randomUUID(),
       foodId: null,
@@ -118,11 +121,11 @@ export default function FoodSearch({ meal, onAdd, onClose }: FoodSearchProps) {
                 background: "var(--accent)",
                 color: "#fff",
                 border: "none",
-                opacity: quickCalories ? 1 : 0.5,
+                opacity: quickCalValid ? 1 : 0.5,
               }}
-              disabled={!quickCalories}
+              disabled={!quickCalValid}
             >
-              Add {quickCalories ? `${quickCalories} cal` : ""}
+              Add {quickCalValid ? `${quickCal} cal` : ""}
             </button>
           </div>
         )}

@@ -2,19 +2,19 @@ import { MICRO_DEFS } from "../data/types";
 import type { FoodItem, FoodEntry, MicroKey, UserProfile, ActivityLevel } from "../data/types";
 import { findFood } from "./customFoods";
 
-/** Scale a food's nutrition by portion (grams) */
+/** Scale a food's nutrition by portion (grams). Full precision: round only when displaying. */
 export function scaleNutrition(
   food: FoodItem,
   portionGrams: number,
 ): { calories: number; protein: number; carbs: number; fat: number; fiber: number; sugar: number } {
   const factor = portionGrams / 100;
   return {
-    calories: Math.round(food.calories * factor),
-    protein: Math.round(food.protein * factor * 10) / 10,
-    carbs: Math.round(food.carbs * factor * 10) / 10,
-    fat: Math.round(food.fat * factor * 10) / 10,
-    fiber: Math.round(food.fiber * factor * 10) / 10,
-    sugar: Math.round(food.sugar * factor * 10) / 10,
+    calories: food.calories * factor,
+    protein: food.protein * factor,
+    carbs: food.carbs * factor,
+    fat: food.fat * factor,
+    fiber: food.fiber * factor,
+    sugar: food.sugar * factor,
   };
 }
 
@@ -23,8 +23,7 @@ export function scaleMicros(food: FoodItem, portionGrams: number): Record<MicroK
   const out = {} as Record<MicroKey, number | null>;
   for (const { key } of MICRO_DEFS) {
     const per100 = food[key];
-    const dp = key === "vitaminB12" || key === "vitaminD" ? 100 : 10;
-    out[key] = per100 === null ? null : Math.round(per100 * (portionGrams / 100) * dp) / dp;
+    out[key] = per100 === null ? null : per100 * (portionGrams / 100);
   }
   return out;
 }

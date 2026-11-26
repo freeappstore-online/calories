@@ -143,7 +143,8 @@ export function logsToCsv(): string {
   const rows = [["date", "meal", "name", "portion_g", "calories", "protein_g", "carbs_g", "fat_g", "fiber_g", "sugar_g"]];
   for (const date of Object.keys(logs).sort()) {
     for (const e of logs[date]?.entries ?? []) {
-      rows.push([date, e.meal, e.name, e.portionGrams, e.calories, e.protein, e.carbs, e.fat, e.fiber, e.sugar].map(String));
+      const r1 = (n: number) => Math.round(n * 10) / 10;
+      rows.push([date, e.meal, e.name, Math.round(e.portionGrams), Math.round(e.calories), r1(e.protein), r1(e.carbs), r1(e.fat), r1(e.fiber), r1(e.sugar)].map(String));
     }
   }
   return rows.map((r) => r.map(csvCell).join(",")).join("\r\n") + "\r\n";

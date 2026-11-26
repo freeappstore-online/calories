@@ -58,7 +58,7 @@ export default function RecentFoods({ meal, favorites, onAdd }: RecentFoodsProps
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium truncate">{t.name}</div>
                     <div className="text-[0.6875rem]" style={{ color: "var(--muted)" }}>
-                      {Math.round(t.portionGrams)} g &middot; {t.calories} cal
+                      {Math.round(t.portionGrams)} g &middot; {Math.round(t.calories)} cal
                     </div>
                   </div>
                   <svg

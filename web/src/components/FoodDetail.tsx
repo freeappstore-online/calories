@@ -111,7 +111,7 @@ export default function FoodDetail({ food, meal, onMealChange, onAdd, onDeleted 
       >
         <div>
           <div className="text-lg font-bold" style={{ color: "var(--accent)" }}>
-            {preview.calories}
+            {Math.round(preview.calories)}
           </div>
           <div className="text-[0.625rem]" style={{ color: "var(--muted)" }}>cal</div>
         </div>

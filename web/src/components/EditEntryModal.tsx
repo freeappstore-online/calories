@@ -111,7 +111,7 @@ export default function EditEntryModal({ entry, onSave, onClose }: EditEntryModa
             </label>
             <div className="rounded-xl p-3 grid grid-cols-4 gap-2 text-center" style={{ background: "var(--panel)" }}>
               {[
-                ["cal", gramsValid ? String(preview.calories) : "–", "var(--accent)"],
+                ["cal", gramsValid ? String(Math.round(preview.calories)) : "–", "var(--accent)"],
                 ["protein", gramsValid ? `${Math.round(preview.protein)}g` : "–", "#3b82f6"],
                 ["carbs", gramsValid ? `${Math.round(preview.carbs)}g` : "–", "#f59e0b"],
                 ["fat", gramsValid ? `${Math.round(preview.fat)}g` : "–", "#ef4444"],

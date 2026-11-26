@@ -120,10 +120,11 @@ export default function DailyLogView({
 
   /** Change the meal's total weight by the meal step, spread proportionally over its foods */
   const handleStepMeal = (sign: 1 | -1) => {
-    const weight = mealEntries.reduce((sum, e) => sum + e.portionGrams, 0);
+    const foods = mealEntries.filter((e) => e.portionGrams > 0);
+    const weight = foods.reduce((sum, e) => sum + e.portionGrams, 0);
     const target = weight + sign * steps.mealStepGrams;
     if (weight <= 0 || target < 1) return;
-    const ids = new Set(mealEntries.map((e) => e.id));
+    const ids = new Set(foods.map((e) => e.id));
     replaceEntries((e) => (ids.has(e.id) ? scaleEntry(e, target / weight) : e));
   };
 
@@ -208,7 +209,7 @@ export default function DailyLogView({
               className="text-[0.625rem]"
               style={{ color: activeMeal === m.id ? "rgba(255,255,255,0.7)" : "var(--muted)" }}
             >
-              {mealTotals[m.id]} cal
+              {Math.round(mealTotals[m.id])} cal
             </div>
           </button>
         ))}
@@ -280,7 +281,7 @@ export default function DailyLogView({
                     −
                   </button>
                   <span className="w-9 text-center text-sm font-bold" style={{ color: "var(--accent)" }}>
-                    {entry.calories}
+                    {Math.round(entry.calories)}
                   </span>
                   <button
                     onClick={(e) => {
@@ -424,7 +425,7 @@ export default function DailyLogView({
                   <div className="text-sm font-medium">{sm.name}</div>
                   <div className="text-[0.6875rem]" style={{ color: "var(--muted)" }}>
                     {sm.entries.length} items &middot;{" "}
-                    {sm.entries.reduce((sum, e) => sum + e.calories, 0)} cal
+                    {Math.round(sm.entries.reduce((sum, e) => sum + e.calories, 0))} cal
                   </div>
                 </button>
               ))}
