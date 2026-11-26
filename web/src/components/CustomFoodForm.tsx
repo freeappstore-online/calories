@@ -1,10 +1,13 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CustomFood } from "../data/types";
 import { CUSTOM_IMAGE, isValidGrams, MAX_CUSTOM_VALUE, MAX_GRAMS, MIN_GRAMS, newCustomId, saveCustomFood } from "../lib/customFoods";
 import { MICRO_DEFS } from "../data/types";
+import type { SourceKey } from "../lib/labelParser";
 import { OPEN_LABEL_SCANNER_EVENT, photoToCanvas, scanCanvas, useEngines, type ScanProgress } from "../lib/labelScanner";
 import { bestAttempt, nextEngine, type Attempt } from "../lib/ocr/chain";
 import { ENGINES, readyEngines } from "../lib/ocr/engines";
+import LabelCamera from "./LabelCamera";
+import LabelReview from "./LabelReview";
 import Modal from "./Modal";
 
 interface CustomFoodFormProps {
@@ -41,16 +44,23 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
   const [error, setError] = useState<string | null>(null);
   const engines = useEngines();
   const anyReady = readyEngines().length > 0;
-  const photoRef = useRef<HTMLInputElement>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
   const [scanning, setScanning] = useState<ScanProgress | null>(null);
   const [scanned, setScanned] = useState<Set<string>>(new Set());
   const [scanNote, setScanNote] = useState<{ text: string; error: boolean } | null>(null);
   // What the last scan saw: the photo, every model's attempt, and the one whose values are in the form
-  const [review, setReview] = useState<{ canvas: HTMLCanvasElement; attempts: Attempt[]; shown: number } | null>(null);
+  const [review, setReview] = useState<{ canvas: HTMLCanvasElement; url: string; attempts: Attempt[]; shown: number } | null>(null);
+  const [selected, setSelected] = useState<SourceKey | null>(null);
+  const reviewUrl = useRef<string | null>(null);
+  useEffect(() => () => {
+    if (reviewUrl.current) URL.revokeObjectURL(reviewUrl.current);
+  }, []);
   const set = (key: string, v: string) => {
     setValues((prev) => ({ ...prev, [key]: v }));
     setScanned((prev) => (prev.has(key) ? new Set([...prev].filter((k) => k !== key)) : prev));
   };
+  /** Tapping a field that came from the scan shows its source on the photo */
+  const focusField = (key: string) => scanned.has(key) && setSelected(key as SourceKey);
 
   /** Put one attempt's values in the form (replacing what an earlier attempt filled, never what was typed by hand) */
   const apply = (attempt: Attempt, attempts: Attempt[]) => {
@@ -81,8 +91,13 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
     });
   };
 
-  const showReview = (canvas: HTMLCanvasElement, attempts: Attempt[], shown: number) => {
-    setReview({ canvas, attempts, shown });
+  const showReview = (canvas: HTMLCanvasElement, attempts: Attempt[], shown: number, url?: string) => {
+    if (url) {
+      if (reviewUrl.current) URL.revokeObjectURL(reviewUrl.current);
+      reviewUrl.current = url;
+    }
+    setReview({ canvas, url: reviewUrl.current!, attempts, shown });
+    setSelected(null);
     const attempt = attempts[shown];
     if (attempt) apply(attempt, attempts);
   };
@@ -94,8 +109,9 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
     setError(null);
     try {
       const attempts = await scanCanvas(canvas, setScanning, { previous, single: !!previous });
+      const url = previous ? undefined : URL.createObjectURL(await new Promise<Blob>((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error("Could not keep the photo."))), "image/jpeg", 0.85)));
       const best = previous ? attempts.length - 1 : attempts.indexOf(bestAttempt(attempts)!);
-      showReview(canvas, attempts, best);
+      showReview(canvas, attempts, best, url);
     } catch (e) {
       setScanNote({ text: e instanceof Error ? e.message : "Could not scan the label.", error: true });
     } finally {
@@ -103,10 +119,10 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
     }
   };
 
-  const handlePhoto = async (photo: File | undefined) => {
-    if (!photo) return;
+  const handlePhoto = async (photo: HTMLCanvasElement | File) => {
+    setCameraOpen(false);
     try {
-      await runScan(await photoToCanvas(photo));
+      await runScan(photo instanceof HTMLCanvasElement ? photo : await photoToCanvas(photo));
     } catch (e) {
       setScanNote({ text: e instanceof Error ? e.message : "Could not scan the label.", error: true });
     }
@@ -179,6 +195,7 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
         value={values[key] ?? ""}
         placeholder={placeholder}
         onChange={(e) => set(key, e.target.value)}
+        onFocus={() => focusField(key)}
         className="w-full px-3 py-2 rounded-lg text-sm outline-none"
         style={scanned.has(key) ? scannedStyle : inputStyle}
       />
@@ -210,7 +227,7 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
         <div className="p-4 flex flex-col gap-3 overflow-y-auto">
           {anyReady && (
             <button
-              onClick={() => photoRef.current?.click()}
+              onClick={() => setCameraOpen(true)}
               disabled={scanning !== null}
               className="w-full py-2.5 rounded-lg text-sm font-semibold cursor-pointer disabled:opacity-60"
               style={{ background: "var(--panel)", border: "1px solid var(--accent)", color: "var(--accent)" }}
@@ -262,6 +279,9 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
                   ))}
                 </div>
               )}
+              {review.attempts[review.shown]?.result && review.attempts[review.shown]?.scan && (
+                <LabelReview imageUrl={review.url} result={review.attempts[review.shown]!.result!} scan={review.attempts[review.shown]!.scan!} selected={selected} onSelect={setSelected} />
+              )}
               {scanning === null && nextEngine(new Set(readyEngines()), review.attempts) && (
                 <button
                   type="button"
@@ -274,18 +294,7 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
               )}
             </>
           )}
-          <input
-            ref={photoRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            aria-label="Label photo"
-            className="hidden"
-            onChange={(e) => {
-              void handlePhoto(e.target.files?.[0]);
-              e.target.value = "";
-            }}
-          />
+          {cameraOpen && <LabelCamera onPhoto={(p) => void handlePhoto(p)} onClose={() => setCameraOpen(false)} />}
           <label className="block">
             <span className="text-[0.6875rem] font-medium block mb-0.5" style={{ color: "var(--muted)" }}>Name</span>
             <input
@@ -294,6 +303,7 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
               maxLength={60}
               autoFocus
               onChange={(e) => set("name", e.target.value)}
+              onFocus={() => focusField("name")}
               className="w-full px-3 py-2 rounded-lg text-sm outline-none"
               style={scanned.has("name") ? scannedStyle : inputStyle}
             />
@@ -305,6 +315,7 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
                 type="text"
                 value={values["servingLabel"]}
                 onChange={(e) => set("servingLabel", e.target.value)}
+                onFocus={() => focusField("servingLabel")}
                 className="w-full px-3 py-2 rounded-lg text-sm outline-none"
                 style={scanned.has("servingLabel") ? scannedStyle : inputStyle}
               />

@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { parseLabel } from "../labelParser";
 import { orderQuad, quadContains, rectQuad, spanQuad } from "./geometry";
 import { piecesOf } from "./florence";
 import { boxQuad, ctcDecode, detBoxes, detSize, pieceLines, type Piece, type TextBox } from "./paddlePipeline";
+import { highlightsOf, hitTest } from "./provenance";
 import { linesOfPage } from "./tesseract";
 import type { OcrLine } from "./types";
 
@@ -38,6 +40,29 @@ describe("geometry", () => {
   it("tests whether a point is inside a quad", () => {
     expect(quadContains(rectQuad(0, 0, 10, 10), [5, 5])).toBe(true);
     expect(quadContains(rectQuad(0, 0, 10, 10), [11, 5])).toBe(false);
+  });
+});
+
+describe("provenance on a scanned label", () => {
+  const rows = ["Serving size: 30 g", "per Serving per 100 g", "Energy 485 kJ 1620 kJ", "Protein 5.7 g 19.0 g", "Fat, total 3.3 g 11.0 g"];
+  const lines: OcrLine[] = rows.map((text, i) => ({ text, conf: 90, quad: rectQuad(0, i * 30, 400, i * 30 + 20) }));
+  const scan = parseLabel(rows.join("\n"));
+
+  it("boxes the name and the figure of each field", () => {
+    const hs = highlightsOf(scan, lines).filter((h) => h.field === "protein");
+    expect(hs.map((h) => [h.role, h.text])).toEqual([["name", "Protein"], ["figure", "5.7 g"]]);
+    // On the protein line, the figure lies to the right of the name
+    expect(hs[1]!.quad[0][0]).toBeGreaterThan(hs[0]!.quad[1][0] - 1);
+    expect(hs.every((h) => h.quad[0][1] >= 90 && h.quad[3][1] <= 110)).toBe(true);
+  });
+
+  it("finds what a tap landed on: a field's box first, else the line", () => {
+    const hs = highlightsOf(scan, lines);
+    const figure = hs.find((h) => h.field === "protein" && h.role === "figure")!;
+    const centre: [number, number] = [(figure.quad[0][0] + figure.quad[1][0]) / 2, (figure.quad[0][1] + figure.quad[3][1]) / 2];
+    expect(hitTest(centre, hs, lines).highlight?.field).toBe("protein");
+    expect(hitTest([10, 5], hs, lines).line?.text).toBe("Serving size: 30 g");
+    expect(hitTest([390, 500], hs, lines)).toEqual({});
   });
 });
 

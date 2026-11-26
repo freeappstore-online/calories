@@ -27,6 +27,9 @@
       "purpose": "maskable"
     }
   ],
+  "permissions": [
+    { "name": "camera", "reason": "Shows a live view of a nutrition label so its values can be read and filled in. The camera is only used while you scan." }
+  ],
   "orientation": "any",
   "min_viewport_width": 360
 }
