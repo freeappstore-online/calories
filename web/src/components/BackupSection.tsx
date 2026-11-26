@@ -1,21 +1,10 @@
 import { useRef, useState } from "react";
 import { applyBackup, buildBackup, logsToCsv, parseBackup } from "../lib/backup";
 import { today } from "../lib/dates";
+import { download } from "../lib/download";
 import type { Backup, BackupSummary } from "../lib/backup";
 
 type Mode = "merge" | "replace";
-
-function download(filename: string, content: string, type: string) {
-  const url = URL.createObjectURL(new Blob([content], { type }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  // iOS Safari starts the download asynchronously; revoking immediately cancels it
-  setTimeout(() => URL.revokeObjectURL(url), 10_000);
-}
 
 const btn = "px-3 py-2 rounded-lg text-sm font-medium cursor-pointer";
 const btnStyle = { background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)" };

@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import type { CustomFood } from "../data/types";
-import { CUSTOM_IMAGE, isValidGrams, MAX_CUSTOM_VALUE, MAX_GRAMS, MIN_GRAMS, newCustomId, saveCustomFood } from "../lib/customFoods";
+import { buildCustomFood, isValidGrams, MAX_CUSTOM_VALUE, MAX_GRAMS, MIN_GRAMS, saveCustomFood } from "../lib/customFoods";
 import { MICRO_DEFS } from "../data/types";
 import type { SourceKey } from "../lib/labelParser";
 import { OPEN_LABEL_SCANNER_EVENT, photoToCanvas, scanCanvas, useEngines, type ScanProgress } from "../lib/labelScanner";
 import { bestAttempt, nextEngine, type Attempt } from "../lib/ocr/chain";
 import { ENGINES, readyEngines } from "../lib/ocr/engines";
+import { nameFromFront, saveScanToLab } from "../lib/scanLab/capture";
 import LabelCamera from "./LabelCamera";
 import LabelReview from "./LabelReview";
 import Modal from "./Modal";
@@ -32,8 +33,6 @@ function parseField(text: string): { value: number | null; error?: true } {
   const n = Number(t);
   return Number.isFinite(n) && n >= 0 ? { value: n } : { value: null, error: true };
 }
-
-const round = (n: number, dp: number) => Math.round(n * 10 ** dp) / 10 ** dp;
 
 /** Fields filled from a scan get an accent border until the user edits them */
 const scannedStyle = { ...inputStyle, border: "1px solid var(--accent)" };
@@ -130,6 +129,31 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
 
   const tryNext = () => review && void runScan(review.canvas, review.attempts);
 
+  // The scan lab keeps the photos for checking the models later; a front photo also names the food
+  const [front, setFront] = useState<Blob | null>(null);
+  const [lab, setLab] = useState<{ text: string; error: boolean } | null>(null);
+  const frontPhoto = async (file: File | undefined) => {
+    if (!file) return;
+    setLab({ text: "Reading the name from the front...", error: false });
+    try {
+      const name = await nameFromFront(file);
+      setFront(file);
+      set("name", name);
+      setLab({ text: `Name read from the front photo: "${name}". Correct it if needed.`, error: false });
+    } catch (e) {
+      setLab({ text: e instanceof Error ? e.message : "Could not read the front photo.", error: true });
+    }
+  };
+  const saveToLab = async () => {
+    if (!review) return;
+    try {
+      await saveScanToLab(review.canvas, review.attempts, values["name"] ?? "", front ?? undefined);
+      setLab({ text: "Saved to the scan lab (Profile, Label scanner). The other models are reading it there.", error: false });
+    } catch (e) {
+      setLab({ text: e instanceof Error ? e.message : "Could not save to the scan lab.", error: true });
+    }
+  };
+
   const openProfile = () => {
     onClose();
     window.dispatchEvent(new Event(OPEN_LABEL_SCANNER_EVENT));
@@ -153,35 +177,7 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
       perServing[key] = parsed.value;
     }
 
-    const per100 = (key: string, dp: number) => {
-      const v = perServing[key];
-      return v === null || v === undefined ? null : round((v * 100) / grams.value!, dp);
-    };
-    const food: CustomFood = {
-      id: newCustomId(),
-      name,
-      category: "custom",
-      image: CUSTOM_IMAGE,
-      servingLabel: get("servingLabel").trim() || "1 serving",
-      servingGrams: grams.value,
-      calories: per100("calories", 1)!,
-      protein: per100("protein", 1) ?? 0,
-      carbs: per100("carbs", 1) ?? 0,
-      fat: per100("fat", 1) ?? 0,
-      fiber: per100("fiber", 1) ?? 0,
-      sugar: per100("sugar", 1) ?? 0,
-      satFat: per100("satFat", 3),
-      cholesterol: per100("cholesterol", 3),
-      sodium: per100("sodium", 3),
-      potassium: per100("potassium", 3),
-      calcium: per100("calcium", 3),
-      iron: per100("iron", 3),
-      magnesium: per100("magnesium", 3),
-      vitaminA: per100("vitaminA", 3),
-      vitaminC: per100("vitaminC", 3),
-      vitaminD: per100("vitaminD", 3),
-      vitaminB12: per100("vitaminB12", 3),
-    };
+    const food = buildCustomFood({ name, servingLabel: get("servingLabel").trim() || "1 serving", servingGrams: grams.value, perServing });
     if (!saveCustomFood(food)) return setError("Could not save: browser storage is full or unavailable.");
     onSaved(food);
   };
@@ -294,6 +290,20 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
               )}
             </>
           )}
+          {anyReady && (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.6875rem]" style={{ color: "var(--muted)" }}>
+              <label className="underline cursor-pointer" style={{ color: "var(--accent)" }}>
+                Name from front photo
+                <input type="file" accept="image/*" capture="environment" hidden data-testid="front-photo" onChange={(e) => { void frontPhoto(e.target.files?.[0]); e.target.value = ""; }} />
+              </label>
+              {review && (
+                <button type="button" onClick={() => void saveToLab()} className="underline cursor-pointer" style={{ background: "none", border: "none", padding: 0, color: "var(--accent)", font: "inherit" }}>
+                  Save to scan lab
+                </button>
+              )}
+            </div>
+          )}
+          {lab && <p role="status" data-testid="lab-note" className="text-xs" style={{ color: lab.error ? "var(--error)" : "var(--muted)" }}>{lab.text}</p>}
           {cameraOpen && <LabelCamera onPhoto={(p) => void handlePhoto(p)} onClose={() => setCameraOpen(false)} />}
           <label className="block">
             <span className="text-[0.6875rem] font-medium block mb-0.5" style={{ color: "var(--muted)" }}>Name</span>

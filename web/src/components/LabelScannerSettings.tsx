@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ENGINES, downloadBytes, downloadEngine, removeEngine, useEngines } from "../lib/ocr/engines";
 import { ENGINE_ORDER } from "../lib/ocr/chain";
 import type { EngineId } from "../lib/ocr/types";
+import ScanLab from "./ScanLab";
 
 const btn = "px-3 py-2 rounded-lg text-sm font-medium cursor-pointer";
 const btnStyle = { background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)" };
@@ -111,6 +112,7 @@ function EngineRow({ id, position }: { id: EngineId; position: number }) {
 
 /** Profile section: optional downloads of the on-device OCR models used by Scan label in Create food */
 export default function LabelScannerSettings() {
+  const [labOpen, setLabOpen] = useState(false);
   return (
     <div id="label-scanner" className="rounded-xl p-4 mt-4 space-y-3" style={{ background: "var(--panel)", border: "1px solid var(--line)" }}>
       <div>
@@ -129,6 +131,19 @@ export default function LabelScannerSettings() {
       {ENGINE_ORDER.map((id, i) => (
         <EngineRow key={id} id={id} position={i + 1} />
       ))}
+      <div className="rounded-lg p-3 space-y-2" style={{ background: "var(--paper)", border: "1px solid var(--line)" }}>
+        <h3 className="text-sm font-semibold" style={{ color: "var(--ink)" }}>
+          Scan lab
+        </h3>
+        <p className="text-xs" style={{ color: "var(--muted)" }}>
+          Save a front photo and a nutrition photo of a real food, see what every downloaded model reads from them, enter the true values and
+          measure accuracy. Photos stay on this device.
+        </p>
+        <button className={btn} style={btnStyle} onClick={() => setLabOpen(true)}>
+          Open scan lab
+        </button>
+      </div>
+      {labOpen && <ScanLab onClose={() => setLabOpen(false)} />}
     </div>
   );
 }

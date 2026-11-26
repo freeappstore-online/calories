@@ -1,4 +1,5 @@
 import { foodById, servingSizes } from "../data";
+import { MICRO_DEFS } from "../data/types";
 import type { CustomFood, FoodItem, ServingSize } from "../data/types";
 
 const CUSTOM_FOODS_KEY = "calories_custom_foods";
@@ -85,6 +86,31 @@ export function servingsFor(food: FoodItem): ServingSize[] | undefined {
 export function imageFor(foodId: string | null): string | undefined {
   if (!foodId) return undefined;
   return foodById.get(foodId)?.image ?? (foodId.startsWith(CUSTOM_PREFIX) ? CUSTOM_IMAGE : undefined);
+}
+
+const round = (n: number, dp: number) => Math.round(n * 10 ** dp) / 10 ** dp;
+
+/** A custom food from label values per serving (null or absent = not on the label); stored per 100 g */
+export function buildCustomFood(input: { name: string; servingLabel: string; servingGrams: number; perServing: Record<string, number | null | undefined> }): CustomFood {
+  const per100 = (key: string, dp: number) => {
+    const v = input.perServing[key];
+    return v === null || v === undefined ? null : round((v * 100) / input.servingGrams, dp);
+  };
+  return {
+    id: newCustomId(),
+    name: input.name,
+    category: "custom",
+    image: CUSTOM_IMAGE,
+    servingLabel: input.servingLabel,
+    servingGrams: input.servingGrams,
+    calories: per100("calories", 1)!,
+    protein: per100("protein", 1) ?? 0,
+    carbs: per100("carbs", 1) ?? 0,
+    fat: per100("fat", 1) ?? 0,
+    fiber: per100("fiber", 1) ?? 0,
+    sugar: per100("sugar", 1) ?? 0,
+    ...(Object.fromEntries(MICRO_DEFS.map((m) => [m.key, per100(m.key, 3)])) as Record<(typeof MICRO_DEFS)[number]["key"], number | null>),
+  };
 }
 
 export function newCustomId(): string {
