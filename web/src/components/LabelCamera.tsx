@@ -26,7 +26,9 @@ const LIVE_INTERVAL_MS = 650;
 const SKIP_INTERVAL_MS = 120;
 
 /** Sharp frames after which, if the four values still have not settled, the hint points at the shutter */
-const SLOW_AFTER_FRAMES = 12;
+const SLOW_AFTER_FRAMES = 10;
+/** Sharp frames after which auto takes the best frame anyway: the model chain reads what the frames did not settle */
+const AUTO_GIVE_UP_FRAMES = 15;
 
 const KEY_LABELS: Record<string, string> = { calories: "Calories", protein: "Protein", carbs: "Carbs", fat: "Fat" };
 
@@ -183,7 +185,7 @@ export default function LabelCamera({ onPhoto, onClose }: LabelCameraProps) {
           }
         
           setVotes({ fields: consensus.fields(), frames: consensus.frames, skipped, reason: undefined });
-          if (autoRef.current && consensus.keysSettled()) {
+          if (autoRef.current && (consensus.keysSettled() || consensus.frames >= AUTO_GIVE_UP_FRAMES)) {
             captureRef.current();
             break;
           }
@@ -285,7 +287,7 @@ export default function LabelCamera({ onPhoto, onClose }: LabelCameraProps) {
               (votes.reason
                 ? votes.reason === "blurry" ? "Not sharp enough, hold steady and let the camera focus." : "Moving, hold the phone steady."
                 : live && votes.frames >= SLOW_AFTER_FRAMES
-                  ? "This label is hard to read live. Tap the shutter to read the best frame."
+                  ? "Hard to read live. Tap the shutter, or wait and the best frame is taken."
                   : live
                   ? `${ENGINES[live.engine].name} is reading ${votes.frames} sharp frame${votes.frames === 1 ? "" : "s"}. Fit the nutrition table inside the frame.`
                   : "Fit the nutrition table inside the frame.")}

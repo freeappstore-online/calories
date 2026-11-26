@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   agreementWith,
   Consensus,
+  disagreements,
   FrameGate,
   FramePool,
   frameRead,
@@ -143,6 +144,14 @@ describe("mergeConsensus", () => {
     expect(merged.values.sugar).toBe(9);
     expect(merged.servingGrams).toBe(45);
     expect(mergeConsensus(scan, undefined)).toBe(scan);
+  });
+});
+
+describe("disagreements", () => {
+  it("lists settled values that the photo read differently", () => {
+    const scan = parseLabel("Nutrition Facts\nServing size 1 bar (40g)\nCalories 190\nTotal Fat 7g\nTotal Carbohydrate 22g\nProtein 5g");
+    expect(disagreements(scan, { values: { protein: 6, fat: 7, sugar: 3 }, frames: 5 })).toEqual([{ field: "protein", live: 6, photo: 5 }]);
+    expect(disagreements(scan, undefined)).toEqual([]);
   });
 });
 

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { CustomFood } from "../data/types";
 import { buildCustomFood, isValidGrams, MAX_CUSTOM_VALUE, MAX_GRAMS, MIN_GRAMS, saveCustomFood } from "../lib/customFoods";
 import { MICRO_DEFS } from "../data/types";
-import { mergeConsensus, type ConsensusResult } from "../lib/consensus";
+import { disagreements, mergeConsensus, type ConsensusResult } from "../lib/consensus";
 import type { SourceKey } from "../lib/labelParser";
 import { OPEN_LABEL_SCANNER_EVENT, photoToCanvas, scanCanvas, useEngines, type ScanProgress } from "../lib/labelScanner";
 import { bestAttempt, nextEngine, type Attempt } from "../lib/ocr/chain";
@@ -34,6 +34,10 @@ function parseField(text: string): { value: number | null; error?: true } {
   const n = Number(t);
   return Number.isFinite(n) && n >= 0 ? { value: n } : { value: null, error: true };
 }
+
+/** A nutrient's name as the form labels it, without the unit */
+const fieldName = (key: string) =>
+  key === "calories" ? "Calories" : [...MACROS, ...MICRO_DEFS].find((m) => m.key === key)?.label.replace(/\s*\(.*\)$/, "") ?? key;
 
 /** Fields filled from a scan get an accent border until the user edits them */
 const scannedStyle = { ...inputStyle, border: "1px solid var(--accent)" };
@@ -86,9 +90,11 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
     setScanned(new Set(Object.keys(filled)));
     // No model read all four key values cleanly: this is the best of what they read
     const weak = attempts.length > 1 && !attempt.good && !nextEngine(new Set(readyEngines()), attempts) ? "No model read the whole label cleanly; these are the best reading. " : "";
+    const differ = disagreements(attempt.scan!, consensus).map((d) => `${fieldName(d.field)} (camera ${Math.round(d.live * 10) / 10}, photo ${Math.round(d.photo * 10) / 10})`);
+    const differs = differ.length ? `The camera frames and the photo read ${differ.join(", ")} differently; the camera's value is used, so check it. ` : "";
     setScanNote({
-      text: `Filled ${count} nutrient${count === 1 ? "" : "s"} from the label (outlined). ${consensus ? `${Object.keys(consensus.values).length} settled over ${consensus.frames} camera frames. ` : ""}${how} ${weak}Check them against the label before saving. ${scan.warnings.join(" ")}`.trim(),
-      error: scan.warnings.length > 0 || weak !== "",
+      text: `Filled ${count} nutrient${count === 1 ? "" : "s"} from the label (outlined). ${consensus ? `${Object.keys(consensus.values).length} settled over ${consensus.frames} camera frames. ` : ""}${how} ${weak}${differs}Check them against the label before saving. ${scan.warnings.join(" ")}`.trim(),
+      error: scan.warnings.length > 0 || weak !== "" || differ.length > 0,
     });
   };
 

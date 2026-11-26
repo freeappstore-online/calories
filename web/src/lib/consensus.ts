@@ -187,6 +187,14 @@ export function mergeConsensus(scan: LabelScan, c: ConsensusResult | undefined):
   };
 }
 
+/** Settled values that a single read of the best frame contradicts: the form uses the settled value, so these are worth a second look */
+export function disagreements(scan: LabelScan, c: ConsensusResult | undefined): { field: LabelField; live: number; photo: number }[] {
+  if (!c) return [];
+  return (Object.entries(c.values) as [LabelField, number][])
+    .filter(([f, v]) => scan.values[f] !== undefined && normalise(scan.values[f]!) !== v)
+    .map(([field, live]) => ({ field, live, photo: scan.values[field]! }));
+}
+
 // --- frame quality ---
 
 /** Variance of the Laplacian of a greyscale image: high when edges are crisp, low when blurred */
