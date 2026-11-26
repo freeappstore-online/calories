@@ -70,6 +70,11 @@ export function deleteCustomFood(id: string): boolean {
   return write(getCustomFoods().filter((f) => f.id !== id));
 }
 
+/** The custom food saved for a barcode, if any */
+export function customFoodByBarcode(barcode: string): CustomFood | undefined {
+  return getCustomFoods().find((f) => f.barcode === barcode);
+}
+
 /** Library or custom food by id */
 export function findFood(id: string): FoodItem | undefined {
   return foodById.get(id) ?? getCustomFoods().find((f) => f.id === id);
@@ -91,7 +96,7 @@ export function imageFor(foodId: string | null): string | undefined {
 const round = (n: number, dp: number) => Math.round(n * 10 ** dp) / 10 ** dp;
 
 /** A custom food from label values per serving (null or absent = not on the label); stored per 100 g */
-export function buildCustomFood(input: { name: string; servingLabel: string; servingGrams: number; perServing: Record<string, number | null | undefined> }): CustomFood {
+export function buildCustomFood(input: { name: string; servingLabel: string; servingGrams: number; perServing: Record<string, number | null | undefined>; barcode?: string }): CustomFood {
   const per100 = (key: string, dp: number) => {
     const v = input.perServing[key];
     return v === null || v === undefined ? null : round((v * 100) / input.servingGrams, dp);
@@ -103,6 +108,7 @@ export function buildCustomFood(input: { name: string; servingLabel: string; ser
     image: CUSTOM_IMAGE,
     servingLabel: input.servingLabel,
     servingGrams: input.servingGrams,
+    ...(input.barcode ? { barcode: input.barcode } : {}),
     calories: per100("calories", 1)!,
     protein: per100("protein", 1) ?? 0,
     carbs: per100("carbs", 1) ?? 0,

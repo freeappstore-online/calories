@@ -67,7 +67,7 @@ async function labItem(): Promise<LabItem> {
 
 it("offers every tool the issue asks for, each with a description and an object schema", () => {
   expect(Object.keys(tools).sort()).toEqual(
-    ["add_entry", "create_custom_food", "get_day", "get_range_summary", "get_scan", "get_scan_photo", "get_targets", "list_custom_foods", "list_scans", "parse_text", "rerun_scan", "search_foods", "set_correct_values"].sort(),
+    ["add_entry", "create_custom_food", "get_day", "get_range_summary", "get_scan", "get_scan_photo", "get_targets", "list_custom_foods", "list_scans", "lookup_barcode", "parse_text", "rerun_scan", "search_foods", "set_correct_values"].sort(),
   );
   for (const t of Object.values(tools)) {
     expect(t.description.length).toBeGreaterThan(30);
@@ -282,6 +282,25 @@ describe("food log tools", () => {
     expect(await fails("create_custom_food", { name: "x", serving_grams: 40, calories: 99999 })).toMatch(/calories must be/);
     expect(await fails("create_custom_food", { name: "x", serving_grams: 40, calories: 1, micros: { zinc: 2 } })).toMatch(/not a micronutrient.*sodium/);
     expect(getCustomFoods()).toHaveLength(0);
+  });
+
+  it("lookup_barcode finds a product on Open Food Facts, and a saved food by its barcode without the network", async () => {
+    const offJson = { status: 1, product: { product_name: "Oat bar", brands: "Acme", serving_size: "40 g", serving_quantity: 40, nutriments: { "energy-kcal_100g": 400, proteins_100g: 10, salt_100g: 0.5 } } };
+    const fetchMock = vi.fn(async (..._args: unknown[]) => new Response(JSON.stringify(offJson), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const out = await call("lookup_barcode", { barcode: "4006381333931" });
+      expect(out).toMatchObject({ source: "open_food_facts", name: "Oat bar (Acme)", serving_grams: 40, per_serving: { calories: 160, protein: 4, sodium: 80 } });
+      expect(String(fetchMock.mock.calls[0]![0])).toContain("/product/4006381333931.json");
+      await call("create_custom_food", { name: "Oat bar", serving_grams: 40, calories: 160, barcode: "4006381333931" });
+      fetchMock.mockClear();
+      expect(await call("lookup_barcode", { barcode: "4006381333931" })).toMatchObject({ source: "saved", food: { name: "Oat bar", barcode: "4006381333931" } });
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(await fails("lookup_barcode", { barcode: "4006381333932" })).toMatch(/not a valid barcode/);
+      expect(await fails("create_custom_food", { name: "x", serving_grams: 40, calories: 1, barcode: "123" })).toMatch(/not a valid barcode/);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("get_targets returns the targets in effect and which were set by hand", async () => {

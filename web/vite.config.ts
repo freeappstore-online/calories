@@ -8,7 +8,8 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
-    // webp added so the food illustrations work offline; public/ocr/ is the optional label-scanner download, never precached
-    VitePWA(pwaOptions({ workbox: { globPatterns: ["**/*.{js,css,html,png,svg,ico,woff2,webp}"], globIgnores: ["ocr/**"] } })),
+    // webp added so the food illustrations work offline; public/ocr/ is the optional label-scanner download, never precached;
+    // public/zxing/ (the barcode reader's ~1 MB wasm) is not precached either: the app keeps it in Cache Storage after the first barcode read
+    VitePWA(pwaOptions({ workbox: { globPatterns: ["**/*.{js,css,html,png,svg,ico,woff2,webp}"], globIgnores: ["ocr/**", "zxing/**"] } })),
   ],
 });

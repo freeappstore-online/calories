@@ -67,6 +67,8 @@ export interface CustomFood extends FoodItem {
   /** The serving the user entered the label values for */
   servingLabel: string;
   servingGrams: number;
+  /** EAN-13 / EAN-8 of the product, when the food was made from a barcode scan */
+  barcode?: string;
 }
 
 export type FoodCategory =

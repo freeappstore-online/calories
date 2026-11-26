@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import type { CustomFood } from "../data/types";
-import { buildCustomFood, isValidGrams, MAX_CUSTOM_VALUE, MAX_GRAMS, MIN_GRAMS, saveCustomFood } from "../lib/customFoods";
+import { buildCustomFood, customFoodByBarcode, isValidGrams, MAX_CUSTOM_VALUE, MAX_GRAMS, MIN_GRAMS, saveCustomFood } from "../lib/customFoods";
 import { MICRO_DEFS } from "../data/types";
+import { detectBarcode } from "../lib/barcode/detect";
+import { lookupBarcode, type OffFood } from "../lib/barcode/off";
 import { disagreements, mergeConsensus, type ConsensusResult } from "../lib/consensus";
 import { assign, displaced, sameSpan, unassign, type Assignment } from "../lib/assign";
 import type { SourceKey, Span } from "../lib/labelParser";
@@ -64,6 +66,11 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
   // Numbers the user labelled on the photo, and what the scan itself put in the form (to go back to when one is cleared or moved)
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const scanFilled = useRef<Record<string, string>>({});
+  // Barcode: the code that was read (kept on the saved food), what Open Food Facts said, and the barcodes it did not know
+  const [barcode, setBarcode] = useState<{ code: string; food?: OffFood } | null>(null);
+  const [barcodeNote, setBarcodeNote] = useState<{ text: string; error: boolean } | null>(null);
+  const [barcodeOnly, setBarcodeOnly] = useState(false);
+  const missed = useRef(new Set<string>());
   const set = (key: string, v: string) => {
     setValues((prev) => ({ ...prev, [key]: v }));
     setScanned((prev) => (prev.has(key) ? new Set([...prev].filter((k) => k !== key)) : prev));
@@ -151,10 +158,74 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
     }
   };
 
+  /** Put what Open Food Facts has for a product in the form (replacing what a scan filled, never what was typed by hand) */
+  const applyOff = (food: OffFood, fromCache: boolean) => {
+    const filled: Record<string, string> = { servingLabel: food.servingLabel, servingGrams: String(food.servingGrams) };
+    for (const [key, v] of Object.entries(food.values)) filled[key] = String(v);
+    if (!values["name"]?.trim() || scanned.has("name")) filled["name"] = food.name;
+    scanFilled.current = filled;
+    setAssignments([]);
+    setValues((prev) => {
+      const next = { ...prev };
+      for (const k of scanned) next[k] = k === "servingLabel" ? "1 serving" : k === "servingGrams" ? "100" : "";
+      return { ...next, ...filled };
+    });
+    setScanned(new Set(Object.keys(filled)));
+    const count = Object.keys(food.values).length;
+    const per = food.servingLabel === `${food.servingGrams} g` ? `per ${food.servingGrams} g` : `per ${food.servingLabel}`;
+    setBarcodeNote(
+      food.values["calories"] === undefined
+        ? { text: `Open Food Facts knows this product but has no energy value for it (${count} nutrient${count === 1 ? "" : "s"} filled). Scan the label for the rest.`, error: true }
+        : { text: `Filled ${count} nutrient${count === 1 ? "" : "s"} ${per} from Open Food Facts${fromCache ? " (saved on this device)" : ""} (outlined). Check them against the package before saving.`, error: false },
+    );
+  };
+
+  /** Look a barcode up: this device's foods and cache, then Open Food Facts. "missed" means the label has to be scanned instead. */
+  const lookUp = async (code: string): Promise<"filled" | "missed"> => {
+    setBarcode({ code });
+    const saved = customFoodByBarcode(code);
+    if (saved) {
+      setBarcodeNote({ text: `"${saved.name}" is already in your foods (saved from this barcode). Find it in Foods to log it.`, error: false });
+      return "filled";
+    }
+    setBarcodeNote({ text: `Looking up barcode ${code} on Open Food Facts...`, error: false });
+    const r = await lookupBarcode(code);
+    if (r.status === "found") {
+      applyOff(r.food, r.fromCache);
+      setBarcode({ code, food: r.food });
+      if (r.food.values["calories"] !== undefined) return "filled";
+    } else {
+      missed.current.add(code);
+      const why = r.status === "not-found" ? `Open Food Facts does not know barcode ${code}.` : r.status === "offline" ? "Could not reach Open Food Facts (are you offline?)." : r.message;
+      setBarcodeNote({ text: `${why} Scan the label instead.`, error: true });
+    }
+    return "missed";
+  };
+
+  /** A barcode was read from the live camera or from a chosen photo: fill the form from Open Food Facts, else carry on with the label */
+  const handleBarcode = async (code: string, from: "camera" | "photo", canvas?: HTMLCanvasElement) => {
+    setCameraOpen(false);
+    setError(null);
+    if ((await lookUp(code)) === "filled") return;
+    if (from === "camera" && anyReady) {
+      setBarcodeOnly(false);
+      setCameraOpen(true);
+    } else if (from === "photo" && canvas && anyReady) {
+      await runScan(canvas);
+    }
+  };
+
   const handlePhoto = async (photo: HTMLCanvasElement | File, consensus?: ConsensusResult) => {
     setCameraOpen(false);
     try {
-      await runScan(photo instanceof HTMLCanvasElement ? photo : await photoToCanvas(photo), undefined, consensus);
+      const canvas = photo instanceof HTMLCanvasElement ? photo : await photoToCanvas(photo);
+      if (photo instanceof File) {
+        // A chosen photo may be of the barcode (or have it in view): that is looked up before the label is read
+        const code = await detectBarcode(canvas).catch(() => null);
+        if (code) return await handleBarcode(code, "photo", canvas);
+        if (!anyReady) return setBarcodeNote({ text: "No barcode found in that photo.", error: true });
+      }
+      await runScan(canvas, undefined, consensus);
     } catch (e) {
       setScanNote({ text: e instanceof Error ? e.message : "Could not scan the label.", error: true });
     }
@@ -169,6 +240,12 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
     if (!file) return;
     setLab({ text: "Reading the name from the front...", error: false });
     try {
+      // A barcode on the front photo gives the name and the values at once
+      const code = await photoToCanvas(file).then(detectBarcode, () => null).catch(() => null);
+      if (code && (await lookUp(code)) === "filled") {
+        setFront(file);
+        return setLab({ text: "Filled from the barcode on the front photo.", error: false });
+      }
       const name = await nameFromFront(file);
       setFront(file);
       set("name", name);
@@ -213,7 +290,7 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
       perServing[key] = parsed.value;
     }
 
-    const food = buildCustomFood({ name, servingLabel: get("servingLabel").trim() || "1 serving", servingGrams: grams.value, perServing });
+    const food = buildCustomFood({ name, servingLabel: get("servingLabel").trim() || "1 serving", servingGrams: grams.value, perServing, barcode: barcode?.code });
     if (!saveCustomFood(food)) return setError("Could not save: browser storage is full or unavailable.");
     onSaved(food);
   };
@@ -259,7 +336,10 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
         <div className="p-4 flex flex-col gap-3 overflow-y-auto">
           {anyReady && (
             <button
-              onClick={() => setCameraOpen(true)}
+              onClick={() => {
+                setBarcodeOnly(false);
+                setCameraOpen(true);
+              }}
               disabled={scanning !== null}
               className="w-full py-2.5 rounded-lg text-sm font-semibold cursor-pointer disabled:opacity-60"
               style={{ background: "var(--panel)", border: "1px solid var(--accent)", color: "var(--accent)" }}
@@ -269,6 +349,17 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
                 : `Reading with ${ENGINES[scanning.engine].name}...${scanning.fraction > 0 ? ` ${Math.round(scanning.fraction * 100)}%` : ""}`}
             </button>
           )}
+          <button
+            onClick={() => {
+              setBarcodeOnly(true);
+              setCameraOpen(true);
+            }}
+            disabled={scanning !== null}
+            className="w-full py-2.5 rounded-lg text-sm font-semibold cursor-pointer disabled:opacity-60"
+            style={{ background: "var(--panel)", border: "1px solid var(--accent)", color: "var(--accent)" }}
+          >
+            Scan barcode
+          </button>
           {!anyReady && Object.values(engines).some((e) => e.status === "none" || e.status === "downloading") && (
             <p className="text-[0.6875rem]" style={{ color: "var(--muted)" }}>
               Want to fill this in from a photo of the label?{" "}
@@ -285,6 +376,20 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
           {scanNote && (
             <p role="status" data-testid="scan-note" data-confidence={review?.attempts[review.shown]?.confidence?.toFixed(0)} data-good={review?.attempts[review.shown]?.good} className="text-xs" style={{ color: scanNote.error ? "var(--error)" : "var(--muted)" }}>
               {scanNote.text}
+            </p>
+          )}
+          {barcodeNote && (
+            <p role="status" data-testid="barcode-note" className="text-xs" style={{ color: barcodeNote.error ? "var(--error)" : "var(--muted)" }}>
+              {barcodeNote.text}
+            </p>
+          )}
+          {barcode?.food && (
+            <p data-testid="off-attribution" className="text-[0.6875rem]" style={{ color: "var(--muted)" }}>
+              Data from{" "}
+              <a href={`https://world.openfoodfacts.org/product/${barcode.code}`} target="_blank" rel="noopener noreferrer" className="underline" style={{ color: "var(--accent)" }}>
+                Open Food Facts
+              </a>{" "}
+              (ODbL).
             </p>
           )}
           {review && (
@@ -340,7 +445,15 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
             </div>
           )}
           {lab && <p role="status" data-testid="lab-note" className="text-xs" style={{ color: lab.error ? "var(--error)" : "var(--muted)" }}>{lab.text}</p>}
-          {cameraOpen && <LabelCamera onPhoto={(p, c) => void handlePhoto(p, c)} onClose={() => setCameraOpen(false)} />}
+          {cameraOpen && (
+            <LabelCamera
+              barcodeOnly={barcodeOnly}
+              ignoreBarcodes={missed.current}
+              onBarcode={(code) => void handleBarcode(code, "camera")}
+              onPhoto={(p, c) => void handlePhoto(p, c)}
+              onClose={() => setCameraOpen(false)}
+            />
+          )}
           <label className="block">
             <span className="text-[0.6875rem] font-medium block mb-0.5" style={{ color: "var(--muted)" }}>Name</span>
             <input

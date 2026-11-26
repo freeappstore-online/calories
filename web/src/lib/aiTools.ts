@@ -4,7 +4,9 @@
 import type { AppTool } from "@freeappstore/sdk/bridge";
 import { foods, servingSizes } from "../data";
 import { MICRO_DEFS, type CustomFood, type FoodEntry, type FoodItem, type MealType } from "../data/types";
-import { buildCustomFood, findFood, getCustomFoods, isValidGrams, MAX_CUSTOM_VALUE, MAX_GRAMS, MIN_GRAMS, saveCustomFood, servingsFor } from "./customFoods";
+import { normalizeBarcode } from "./barcode/gtin";
+import { lookupBarcode, OFF_ATTRIBUTION } from "./barcode/off";
+import { buildCustomFood, customFoodByBarcode, findFood, getCustomFoods, isValidGrams, MAX_CUSTOM_VALUE, MAX_GRAMS, MIN_GRAMS, saveCustomFood, servingsFor } from "./customFoods";
 import { shiftDate, today, toDateString } from "./dates";
 import { defaultMealForTime } from "./entryEdit";
 import { matchesQuery, normalizeSearch } from "./foodSearch";
@@ -279,7 +281,7 @@ const foodOut = (f: FoodItem) => ({
   servings: servingsFor(f) ?? [],
 });
 
-const customOut = (f: CustomFood) => ({ ...foodOut(f), servingLabel: f.servingLabel, servingGrams: f.servingGrams });
+const customOut = (f: CustomFood) => ({ ...foodOut(f), servingLabel: f.servingLabel, servingGrams: f.servingGrams, ...(f.barcode ? { barcode: f.barcode } : {}) });
 
 function foodTools(deps: AiDeps): AppTool[] {
   const date = { type: "string", description: "Day as YYYY-MM-DD. Default today." };
@@ -421,6 +423,7 @@ function foodTools(deps: AiDeps): AppTool[] {
           fiber: { type: "number", description: "g per serving" },
           sugar: { type: "number", description: "g per serving" },
           micros: { type: "object", description: "Per serving, keyed by nutrient, e.g. {\"sodium\": 190}.", additionalProperties: { type: "number" } },
+          barcode: { type: "string", description: "The product's barcode (EAN/UPC), so the app finds this food again when it is scanned. Optional." },
         },
         required: ["name", "serving_grams", "calories"],
       },
@@ -437,10 +440,32 @@ function foodTools(deps: AiDeps): AppTool[] {
             perServing[k] = numberArg(v, k);
           }
         }
-        const food = buildCustomFood({ name, servingLabel: (typeof a.serving_label === "string" && a.serving_label.trim()) || "1 serving", servingGrams, perServing });
+        const barcode = a.barcode === undefined || a.barcode === null || a.barcode === "" ? undefined : (normalizeBarcode(String(a.barcode)) ?? undefined);
+        if (a.barcode && !barcode) throw new Error(`"${String(a.barcode)}" is not a valid barcode number (EAN-13, UPC-A, EAN-8 or UPC-E, with its check digit).`);
+        const food = buildCustomFood({ name, servingLabel: (typeof a.serving_label === "string" && a.serving_label.trim()) || "1 serving", servingGrams, perServing, barcode });
         if (!saveCustomFood(food)) throw new Error("Could not save: the browser's storage is full or unavailable.");
         deps.changed();
         return { created: customOut(food) };
+      },
+    },
+    {
+      name: "lookup_barcode",
+      description:
+        "Look a product up by barcode (EAN-13, UPC-A, EAN-8 or UPC-E digits) in the user's saved foods, then in Open Food Facts (needs the internet; data under the ODbL licence, credit Open Food Facts). " +
+        "Returns the name, the serving and the values per serving, ready for create_custom_food (pass the same barcode to keep it). Nothing is saved.",
+      inputSchema: { type: "object", properties: { barcode: { type: "string", description: "The digits printed under the barcode." } }, required: ["barcode"] },
+      handler: async (a) => {
+        const code = normalizeBarcode(String(a.barcode ?? ""));
+        if (!code) throw new Error(`"${String(a.barcode ?? "")}" is not a valid barcode number. Pass the 8, 12 or 13 digits printed under the barcode.`);
+        const saved = customFoodByBarcode(code);
+        if (saved) return { source: "saved", barcode: code, food: customOut(saved) };
+        const r = await lookupBarcode(code);
+        if (r.status === "found") {
+          return { source: r.fromCache ? "cache" : "open_food_facts", attribution: OFF_ATTRIBUTION, barcode: code, name: r.food.name, serving_label: r.food.servingLabel, serving_grams: r.food.servingGrams, per_serving: r.food.values };
+        }
+        if (r.status === "not-found") throw new Error(`Open Food Facts has no product for ${code}. Ask the user to scan the nutrition label, or enter the values with create_custom_food.`);
+        if (r.status === "offline") throw new Error("Open Food Facts could not be reached: this computer is offline. Try again when it is online.");
+        throw new Error(r.message);
       },
     },
     {

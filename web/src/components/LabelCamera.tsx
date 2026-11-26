@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Consensus, FrameGate, FramePool, frameRead, type ConsensusResult, type FieldReport, type VoteField } from "../lib/consensus";
+import { detectBarcode } from "../lib/barcode/detect";
 import { parseLabel, type LabelField } from "../lib/labelParser";
 import { fitCanvas, openLiveEngine } from "../lib/labelScanner";
 import { frameDifference, measureSharpness, thumbnail } from "../lib/liveScan";
@@ -13,6 +14,12 @@ import Modal from "./Modal";
 interface LabelCameraProps {
   /** A photo of the label: the best full-resolution frame seen (with the values the frames settled on), or a file the user chose */
   onPhoto: (photo: HTMLCanvasElement | File, consensus?: ConsensusResult) => void;
+  /** A barcode was read in the picture; the camera is released and a photo is not taken */
+  onBarcode?: (code: string) => void;
+  /** Barcodes to look past (ones that were just looked up and not found), so the camera does not stop on the same one again */
+  ignoreBarcodes?: ReadonlySet<string>;
+  /** Only read barcodes: no label reading, no key values, no shutter */
+  barcodeOnly?: boolean;
   onClose: () => void;
 }
 
@@ -24,6 +31,8 @@ const LIVE_SIDE = 1280;
 const LIVE_INTERVAL_MS = 650;
 /** Wait before looking at the next frame after one that was too blurry or moving to read */
 const SKIP_INTERVAL_MS = 120;
+/** Time between looks for a barcode: it is read from a frame of its own, so it never waits for the label read */
+const BARCODE_INTERVAL_MS = 500;
 
 /** Sharp frames after which, if the four values still have not settled, the hint points at the shutter */
 const SLOW_AFTER_FRAMES = 10;
@@ -40,7 +49,7 @@ const MESSAGES: Record<"denied" | "unavailable", string> = {
 };
 
 /** Live camera view with a framing guide and boxes on the text it can read; falls back to choosing a photo */
-export default function LabelCamera({ onPhoto, onClose }: LabelCameraProps) {
+export default function LabelCamera({ onPhoto, onBarcode, ignoreBarcodes, barcodeOnly, onClose }: LabelCameraProps) {
   const video = useRef<HTMLVideoElement>(null);
   const stream = useRef<MediaStream | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -58,6 +67,10 @@ export default function LabelCamera({ onPhoto, onClose }: LabelCameraProps) {
   const frameBox = useRef<HTMLDivElement>(null);
   const reads = useRef(0);
   const examined = useRef(0);
+  const onBarcodeRef = useRef(onBarcode);
+  onBarcodeRef.current = onBarcode;
+  const ignoreRef = useRef(ignoreBarcodes);
+  ignoreRef.current = ignoreBarcodes;
 
   const stop = useCallback(() => {
     stream.current?.getTracks().forEach((t) => t.stop());
@@ -121,9 +134,8 @@ export default function LabelCamera({ onPhoto, onClose }: LabelCameraProps) {
 
   // The live read: the fastest downloaded model, one frame at a time, never overlapping, paused when hidden
   useEffect(() => {
-    if (state !== "live") return;
+    if (state !== "live" || barcodeOnly) return;
     let cancelled = false;
-    let close: (() => Promise<void>) | undefined;
     const consensus = new Consensus();
     const pool = new FramePool<HTMLCanvasElement>();
     const gate = new FrameGate();
@@ -139,8 +151,9 @@ export default function LabelCamera({ onPhoto, onClose }: LabelCameraProps) {
         return setLiveOff("The live read could not start. You can still take the photo.");
       }
       if (!opened) return setLiveOff("No model that is fast enough for the live view is downloaded. You can still take the photo.");
-      close = opened.runtime.close;
       const { engine, runtime } = opened;
+      // The worker is closed only once the read in flight has finished: stopping it mid-read made Tesseract
+      // fail inside its own teardown ("Cannot read properties of null (reading 'postMessage')") when the shutter was pressed
       while (!cancelled) {
         const v = video.current;
         if (document.hidden || !v || v.readyState < 2 || !v.videoWidth) {
@@ -194,12 +207,46 @@ export default function LabelCamera({ onPhoto, onClose }: LabelCameraProps) {
         }
         await sleep(Math.max(0, LIVE_INTERVAL_MS - (performance.now() - t0)));
       }
+      await runtime.close().catch(() => undefined);
     })();
     return () => {
       cancelled = true;
-      void close?.().catch(() => undefined);
     };
-  }, [state]);
+  }, [state, barcodeOnly]);
+
+  // The barcode look: a frame of its own every half second, the same whether or not a model is downloaded
+  useEffect(() => {
+    if (state !== "live" || !onBarcodeRef.current) return;
+    let cancelled = false;
+    void (async () => {
+      while (!cancelled) {
+        await sleep(BARCODE_INTERVAL_MS);
+        const v = video.current;
+        if (cancelled || document.hidden || !v || v.readyState < 2 || !v.videoWidth) continue;
+        const scale = Math.min(1, LIVE_SIDE / Math.max(v.videoWidth, v.videoHeight));
+        const frame = document.createElement("canvas");
+        frame.width = Math.round(v.videoWidth * scale);
+        frame.height = Math.round(v.videoHeight * scale);
+        frame.getContext("2d", { willReadFrequently: true })!.drawImage(v, 0, 0, frame.width, frame.height);
+        try {
+          const code = await detectBarcode(frame);
+          if (cancelled || done.current) return;
+          if (code && !ignoreRef.current?.has(code)) {
+            done.current = true;
+            stop();
+            onBarcodeRef.current?.(code);
+            return;
+          }
+        } catch {
+          // The reader could not load (offline the first time): the label read carries on without it
+          return;
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [state, stop]);
 
   const unavailable = state === "denied" || state === "unavailable";
   // Until the camera reports its size, assume the screen shape
@@ -216,7 +263,7 @@ export default function LabelCamera({ onPhoto, onClose }: LabelCameraProps) {
       style={{ background: "#000" }}
     >
       <h2 id="label-camera-title" className="sr-only">
-        Scan label
+        {barcodeOnly ? "Scan barcode" : "Scan label"}
       </h2>
 
       {unavailable ? (
@@ -282,7 +329,9 @@ export default function LabelCamera({ onPhoto, onClose }: LabelCameraProps) {
       >
         <p className="text-[0.75rem] leading-snug rounded-xl px-3 py-2 max-w-[80%]" style={glass}>
           {unavailable
-            ? "Scan label"
+            ? barcodeOnly ? "Scan barcode" : "Scan label"
+            : barcodeOnly
+            ? "Aim at the barcode on the package. It is looked up on Open Food Facts."
             : liveOff ??
               (votes.reason
                 ? votes.reason === "blurry" ? "Not sharp enough, hold steady and let the camera focus." : "Moving, hold the phone steady."
@@ -290,7 +339,7 @@ export default function LabelCamera({ onPhoto, onClose }: LabelCameraProps) {
                   ? "Hard to read live. Tap the shutter, or wait and the best frame is taken."
                   : live
                   ? `${ENGINES[live.engine].name} is reading ${votes.frames} sharp frame${votes.frames === 1 ? "" : "s"}. Fit the nutrition table inside the frame.`
-                  : "Fit the nutrition table inside the frame.")}
+                  : "Fit the nutrition table inside the frame, or aim at its barcode.")}
         </p>
         <button
           onClick={onClose}
@@ -312,7 +361,7 @@ export default function LabelCamera({ onPhoto, onClose }: LabelCameraProps) {
           background: "linear-gradient(to bottom, rgba(0,0,0,0), rgba(0,0,0,0.75) 35%)",
         }}
       >
-        {!unavailable && (
+        {!unavailable && !barcodeOnly && (
           <div className="flex items-center justify-between gap-2" aria-label="Values the camera can read">
             {KEY_FIELDS.map((f) => {
               // A chip fills in once the frames agree on the value; before that it only says it is still reading
@@ -347,7 +396,7 @@ export default function LabelCamera({ onPhoto, onClose }: LabelCameraProps) {
           >
             Choose photo
           </button>
-          {!unavailable && (
+          {!unavailable && !barcodeOnly && (
             <>
               <button
                 onClick={capture}
@@ -366,7 +415,7 @@ export default function LabelCamera({ onPhoto, onClose }: LabelCameraProps) {
             </>
           )}
         </div>
-        {!unavailable && (
+        {!unavailable && !barcodeOnly && (
           <p className="text-[0.625rem] text-center" style={{ color: "rgba(255,255,255,0.75)" }}>
             Auto takes the best frame once the four values have settled. The shutter takes it now.
           </p>
