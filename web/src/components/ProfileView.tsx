@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { UserProfile, ActivityLevel, WeightGoal, Sex, TargetOverrides } from "../data/types";
 import BackupSection from "./BackupSection";
+import LabelScannerSettings from "./LabelScannerSettings";
 import PortionStepsSettings from "./PortionStepsSettings";
 import AppearanceSettings from "./AppearanceSettings";
 import TargetsSection from "./TargetsSection";
@@ -318,6 +319,8 @@ export default function ProfileView({ profile, onSave, overrides, onOverridesCha
       <PortionStepsSettings />
 
       <TargetsSection profile={profile} overrides={overrides} onChange={onOverridesChange} />
+
+      <LabelScannerSettings />
 
       <BackupSection />
     </div>

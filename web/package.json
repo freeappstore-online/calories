@@ -5,12 +5,13 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run"
   },
   "dependencies": {
+    "@freeappstore/sdk": "^0.20.0",
     "react": "^19",
-    "react-dom": "^19",
-    "@freeappstore/sdk": "^0.20.0"
+    "react-dom": "^19"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1",
@@ -19,8 +20,10 @@
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^4.3",
     "tailwindcss": "^4.1",
+    "tesseract.js": "7.0.0",
     "typescript": "^5.7",
     "vite": "^6",
-    "vite-plugin-pwa": "^1.0"
+    "vite-plugin-pwa": "^1.0",
+    "vitest": "5.1.2"
   }
 }

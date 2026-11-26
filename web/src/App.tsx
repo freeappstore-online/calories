@@ -16,6 +16,7 @@ import DailyLogView from "./components/DailyLogView";
 import DashboardView from "./components/DashboardView";
 import ProfileView from "./components/ProfileView";
 import FoodsView from "./components/FoodsView";
+import { OPEN_LABEL_SCANNER_EVENT } from "./lib/labelScanner";
 
 type Page = "log" | "foods" | "dashboard" | "profile";
 
@@ -65,6 +66,16 @@ export default function App() {
   const [overrides, setOverrides] = useState<TargetOverrides>(getTargetOverrides);
   const [savedMeals, setSavedMeals] = useState<SavedMeal[]>(getSavedMeals);
   const [profile, setProfile] = useState<UserProfile | null>(getProfile);
+
+  // "Set up Label scanner in Profile" link inside the Create food dialog
+  useEffect(() => {
+    const open = () => {
+      setPage("profile");
+      requestAnimationFrame(() => document.getElementById("label-scanner")?.scrollIntoView());
+    };
+    window.addEventListener(OPEN_LABEL_SCANNER_EVENT, open);
+    return () => window.removeEventListener(OPEN_LABEL_SCANNER_EVENT, open);
+  }, []);
 
   // Roll the selected day over after midnight if it was following "today"
   const lastToday = useRef(today());
