@@ -83,7 +83,7 @@ function Bar({
  * sugar share one gram scale (Profile → Log display) so they can be compared visually.
  * Each bar marks its goal; anything past the goal is red.
  */
-export default function TargetBars({ totals }: { totals: Totals }) {
+export default function TargetBars({ totals, onOpen }: { totals: Totals; onOpen: () => void }) {
   const targets = useTargets();
   // Leave room past the calorie goal so its marker is visible
   const kcalScale = Math.max(targets.calories * 1.15, totals.calories, 1);
@@ -92,14 +92,20 @@ export default function TargetBars({ totals }: { totals: Totals }) {
     ...MACROS.map((m) => Math.max(totals[m.key], targets[m.key])),
   );
   return (
-    <div className="rounded-xl p-2 space-y-1.5" style={{ background: "var(--panel)", border: "1px solid var(--line)" }}>
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label="Show the full nutrition breakdown"
+      className="block w-full text-left rounded-xl p-2 space-y-1.5 cursor-pointer"
+      style={{ background: "var(--panel)", border: "1px solid var(--line)" }}
+    >
       <Bar {...CALORIES} value={totals.calories} target={targets.calories} scale={kcalScale} />
       {MACROS.map((m) => (
         <Bar key={m.key} label={m.label} unit={m.unit} color={m.color} value={totals[m.key]} target={targets[m.key]} scale={gramScale} />
       ))}
       <div className="text-[0.625rem] text-right px-1" style={{ color: "var(--muted)" }}>
-        protein · carbs · fat · sugar to scale: full width = {Math.round(gramScale)} g
+        protein · carbs · fat · sugar to scale: full width = {Math.round(gramScale)} g · tap for full breakdown
       </div>
-    </div>
+    </button>
   );
 }

@@ -49,6 +49,13 @@
 :root[data-text="lg"] { font-size: 112.5%; }
 :root[data-text="sm"] { font-size: 87.5%; }
 
+/* Zoom is disabled (viewport meta); nothing may scroll sideways */
+html,
+body {
+  overflow-x: hidden;
+  touch-action: pan-y;
+}
+
 body {
   margin: 0;
   background: var(--paper);

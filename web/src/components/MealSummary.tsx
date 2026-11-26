@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import type { FoodEntry } from "../data/types";
 import { sumEntries } from "../lib/nutrition";
 import MacroPieChart from "./MacroPieChart";
-import MicronutrientCard from "./MicronutrientCard";
 
 interface MealSummaryProps {
   label: string;
@@ -11,10 +10,12 @@ interface MealSummaryProps {
   stepGrams: number;
   /** Shrink (−1) or grow (+1) the meal's total weight by one step */
   onStep: (sign: 1 | -1) => void;
+  /** Open the meal's full nutrition breakdown */
+  onOpen: () => void;
 }
 
 /** Totals for the active meal plus whole-meal −/+ */
-export default function MealSummary({ label, entries, stepGrams, onStep }: MealSummaryProps) {
+export default function MealSummary({ label, entries, stepGrams, onStep, onOpen }: MealSummaryProps) {
   const t = useMemo(() => sumEntries(entries), [entries]);
   const grams = Math.round(entries.reduce((sum, e) => sum + e.portionGrams, 0));
   const quickAdds = entries.filter((e) => e.portionGrams <= 0).length;
@@ -27,7 +28,10 @@ export default function MealSummary({ label, entries, stepGrams, onStep }: MealS
   ];
   const stepButton = (sign: 1 | -1) => (
     <button
-      onClick={() => onStep(sign)}
+      onClick={(e) => {
+        e.stopPropagation();
+        onStep(sign);
+      }}
       disabled={grams <= 0}
       aria-label={`${stepGrams} g ${sign > 0 ? "more" : "less"} ${label}`}
       className="w-8 h-8 rounded-lg text-base font-bold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
@@ -38,12 +42,23 @@ export default function MealSummary({ label, entries, stepGrams, onStep }: MealS
   );
 
   return (
-    <div className="space-y-2">
-      <div
-        className="rounded-xl p-3 flex items-center gap-3"
-        style={{ background: "var(--panel)", border: "1px solid var(--line)" }}
-      >
-        <MacroPieChart protein={t.protein} carbs={t.carbs} fat={t.fat} calories={t.calories} size={72} compact />
+    <div
+      className="rounded-xl p-3 flex items-center gap-3 cursor-pointer"
+      style={{ background: "var(--panel)", border: "1px solid var(--line)" }}
+      onClick={onOpen}
+    >
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpen();
+          }}
+          aria-label={`${label}: full nutrition breakdown`}
+          className="shrink-0 cursor-pointer p-0"
+          style={{ background: "transparent", border: "none" }}
+        >
+          <MacroPieChart protein={t.protein} carbs={t.carbs} fat={t.fat} calories={t.calories} size={72} compact />
+        </button>
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2 mb-1.5">
             <div className="text-sm font-bold min-w-0" style={{ color: "var(--ink)" }}>
@@ -70,8 +85,6 @@ export default function MealSummary({ label, entries, stepGrams, onStep }: MealS
             ))}
           </div>
         </div>
-      </div>
-      <MicronutrientCard entries={entries} title={`${label} micronutrients`} />
     </div>
   );
 }

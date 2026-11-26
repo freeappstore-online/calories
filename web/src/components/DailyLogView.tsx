@@ -7,7 +7,7 @@ import MealSummary from "./MealSummary";
 import FoodSearch from "./FoodSearch";
 import FoodIcon from "./FoodIcon";
 import Modal from "./Modal";
-import MicronutrientCard from "./MicronutrientCard";
+import NutritionBreakdown from "./NutritionBreakdown";
 import EditEntryModal from "./EditEntryModal";
 import { defaultMealForTime, scaleEntry, stepEntry } from "../lib/entryEdit";
 import { getSettings } from "../lib/settings";
@@ -50,6 +50,7 @@ export default function DailyLogView({
   const [showSaveMeal, setShowSaveMeal] = useState(false);
   const [showLoadMeal, setShowLoadMeal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [breakdown, setBreakdown] = useState<"day" | "meal" | null>(null);
   const editing = log.entries.find((e) => e.id === editingId) ?? null;
 
   const changeDate = (d: string) => {
@@ -186,9 +187,8 @@ export default function DailyLogView({
       </div>
 
       {/* Daily targets */}
-      <TargetBars totals={totals} />
+      <TargetBars totals={totals} onOpen={() => setBreakdown("day")} />
 
-      <MicronutrientCard entries={log.entries} />
 
       {/* Meal tabs */}
       <div className="flex gap-1 overflow-x-auto">
@@ -220,6 +220,7 @@ export default function DailyLogView({
           entries={mealEntries}
           stepGrams={steps.mealStepGrams}
           onStep={handleStepMeal}
+          onOpen={() => setBreakdown("meal")}
         />
       )}
 
@@ -442,6 +443,14 @@ export default function DailyLogView({
 
       {editing && (
         <EditEntryModal entry={editing} onSave={handleUpdateEntry} onClose={() => setEditingId(null)} />
+      )}
+
+      {breakdown && (
+        <NutritionBreakdown
+          title={breakdown === "day" ? formatDate(date) : `${MEALS.find((m) => m.id === activeMeal)!.label} · ${formatDate(date)}`}
+          entries={breakdown === "day" ? log.entries : mealEntries}
+          onClose={() => setBreakdown(null)}
+        />
       )}
 
       {/* Food search modal */}
