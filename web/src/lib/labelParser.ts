@@ -34,9 +34,9 @@ export interface FieldSource {
   column?: "serving" | "per100";
 }
 
-type Unit = "g" | "mg" | "ug" | "kj" | "kcal" | "iu" | "";
+export type Unit = "g" | "mg" | "ug" | "kj" | "kcal" | "iu" | "";
 
-interface Token {
+export interface Token {
   value: number;
   unit: Unit;
   /** Printed as "<1": value is half the stated limit */
@@ -47,7 +47,7 @@ interface Token {
 }
 
 /** Display units of each field, the unit values are converted to */
-const FIELD_UNIT: Record<string, Unit> = {
+export const FIELD_UNIT: Record<string, Unit> = {
   protein: "g", carbs: "g", fat: "g", fiber: "g", sugar: "g", satFat: "g",
   cholesterol: "mg", sodium: "mg", potassium: "mg", calcium: "mg", iron: "mg", magnesium: "mg",
   vitaminA: "ug", vitaminC: "mg", vitaminD: "ug", vitaminB12: "ug",
@@ -119,7 +119,7 @@ function stripGramNine(rawText: string, all: boolean): string {
 type Strip = "none" | "decimal" | "all";
 
 /** `strip`: how far to repair a unit-less gram value whose "g" was misread as 9 */
-function tokenize(text: string, strip: Strip = "none"): Token[] {
+export function tokenize(text: string, strip: Strip = "none"): Token[] {
   const out: Token[] = [];
   for (const m of text.matchAll(TOKEN_RE)) {
     const unit = toUnit(m[4]);
@@ -141,7 +141,7 @@ function tokenize(text: string, strip: Strip = "none"): Token[] {
 }
 
 /** Convert a token to the field's unit; null when the unit makes no sense for the field (e.g. IU) */
-function convert(t: Token, target: Unit): number | null {
+export function convert(t: Token, target: Unit): number | null {
   if (t.unit === "" || t.unit === target) return t.value;
   const perMg: Partial<Record<Unit, number>> = { g: 1000, mg: 1, ug: 0.001 };
   const from = perMg[t.unit];

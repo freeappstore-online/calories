@@ -145,6 +145,15 @@ describe("mergeConsensus", () => {
     expect(merged.servingGrams).toBe(45);
     expect(mergeConsensus(scan, undefined)).toBe(scan);
   });
+
+  it("lets a good full read win over a disagreeing settled value, and still fills what only the camera settled", () => {
+    const scan = parseLabel("Nutrition Facts\nServing size 1 bar (40g)\nCalories 190\nTotal Fat 7g\nTotal Carbohydrate 22g\nProtein 5g");
+    const merged = mergeConsensus(scan, { values: { protein: 19.5, sugar: 9 }, servingGrams: 45, frames: 8 }, true);
+    expect(merged.values.protein).toBe(5);
+    expect(merged.values.sugar).toBe(9);
+    expect(merged.servingGrams).toBe(40);
+    expect(disagreements(scan, { values: { protein: 19.5 }, frames: 8 })).toEqual([{ field: "protein", live: 19.5, photo: 5 }]);
+  });
 });
 
 describe("disagreements", () => {

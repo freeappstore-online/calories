@@ -1,4 +1,4 @@
-import type { LabelScan, SourceKey } from "../labelParser";
+import type { LabelScan, SourceKey, Span } from "../labelParser";
 import { quadContains, spanQuad } from "./geometry";
 import type { OcrLine, Point, Quad } from "./types";
 
@@ -10,6 +10,8 @@ export interface Highlight {
   quad: Quad;
   /** The text inside the box */
   text: string;
+  /** Where in the recognised lines the box is */
+  span: Span;
 }
 
 /** Where on the photo each filled field came from: the nutrient's name and the figure beside it */
@@ -21,7 +23,7 @@ export function highlightsOf(scan: LabelScan, lines: OcrLine[]): Highlight[] {
       if (!line) return;
       // Fields with only one span (the product name, the serving size) point at that span as the figure
       const role = src.spans.length > 1 && i === 0 ? "name" : "figure";
-      out.push({ field, role, quad: spanQuad(line, span.start, span.end), text: line.text.slice(span.start, span.end).trim() });
+      out.push({ field, role, quad: spanQuad(line, span.start, span.end), text: line.text.slice(span.start, span.end).trim(), span });
     });
   }
   return out;

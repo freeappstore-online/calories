@@ -176,9 +176,21 @@ export class Consensus {
   }
 }
 
-/** Settled values win over what a single read found; everything else stays as read */
-export function mergeConsensus(scan: LabelScan, c: ConsensusResult | undefined): LabelScan {
+/**
+ * Settled values win over what a single read found, unless that read is a good one (the full model chain on the best
+ * frame: all four key values found and adding up): live OCR repeating one misread on every frame can settle on it, so
+ * a good full read wins where the two disagree. Values only one side has are always kept.
+ */
+export function mergeConsensus(scan: LabelScan, c: ConsensusResult | undefined, scanIsGood = false): LabelScan {
   if (!c) return scan;
+  if (scanIsGood) {
+    return {
+      ...scan,
+      values: { ...c.values, ...scan.values },
+      servingGrams: scan.servingGrams ?? c.servingGrams,
+      servingLabel: scan.servingLabel ?? c.servingLabel,
+    };
+  }
   return {
     ...scan,
     values: { ...scan.values, ...c.values },

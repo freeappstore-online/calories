@@ -3,7 +3,9 @@ import type { CustomFood } from "../data/types";
 import { buildCustomFood, isValidGrams, MAX_CUSTOM_VALUE, MAX_GRAMS, MIN_GRAMS, saveCustomFood } from "../lib/customFoods";
 import { MICRO_DEFS } from "../data/types";
 import { disagreements, mergeConsensus, type ConsensusResult } from "../lib/consensus";
-import type { SourceKey } from "../lib/labelParser";
+import { assign, displaced, sameSpan, unassign, type Assignment } from "../lib/assign";
+import type { SourceKey, Span } from "../lib/labelParser";
+import type { CorrectValues } from "../lib/scanLab/accuracy";
 import { OPEN_LABEL_SCANNER_EVENT, photoToCanvas, scanCanvas, useEngines, type ScanProgress } from "../lib/labelScanner";
 import { bestAttempt, nextEngine, type Attempt } from "../lib/ocr/chain";
 import { ENGINES, readyEngines } from "../lib/ocr/engines";
@@ -59,17 +61,36 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
   useEffect(() => () => {
     if (reviewUrl.current) URL.revokeObjectURL(reviewUrl.current);
   }, []);
+  // Numbers the user labelled on the photo, and what the scan itself put in the form (to go back to when one is cleared or moved)
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const scanFilled = useRef<Record<string, string>>({});
   const set = (key: string, v: string) => {
     setValues((prev) => ({ ...prev, [key]: v }));
     setScanned((prev) => (prev.has(key) ? new Set([...prev].filter((k) => k !== key)) : prev));
+    setAssignments((prev) => (prev.some((a) => a.key === key) ? prev.filter((a) => a.key !== key) : prev));
+  };
+
+  /** A box was given to a field: its number fills the field, and a field or box it displaced goes back to what the scan read */
+  const original = (k: string) => scanFilled.current[k] ?? (k === "servingGrams" ? "100" : "");
+  const assignBox = (a: Assignment) => {
+    const lost: string[] = displaced(assignments, a).map((x) => x.key).filter((k) => k !== a.key);
+    setAssignments(assign(assignments, a));
+    setValues((prev) => ({ ...prev, ...Object.fromEntries(lost.map((k) => [k, original(k)])), [a.key]: String(a.value) }));
+    setScanned((prev) => new Set([...[...prev].filter((k) => !lost.includes(k) || k in scanFilled.current), a.key]));
+  };
+  const unassignBox = (span: Span) => {
+    const gone: string[] = assignments.filter((x) => sameSpan(x.span, span)).map((x) => x.key);
+    setAssignments(unassign(assignments, span));
+    setValues((prev) => ({ ...prev, ...Object.fromEntries(gone.map((k) => [k, original(k)])) }));
+    setScanned((prev) => new Set([...prev].filter((k) => !gone.includes(k) || k in scanFilled.current)));
   };
   /** Tapping a field that came from the scan shows its source on the photo */
   const focusField = (key: string) => scanned.has(key) && setSelected(key as SourceKey);
 
   /** Put one attempt's values in the form (replacing what an earlier attempt filled, never what was typed by hand) */
   const apply = (attempt: Attempt, attempts: Attempt[], consensus?: ConsensusResult) => {
-    // What the live camera's frames settled on wins over this one read
-    const scan = attempt.scan && mergeConsensus(attempt.scan, consensus);
+    // What the live camera's frames settled on wins over this one read, unless the full read is a good one
+    const scan = attempt.scan && mergeConsensus(attempt.scan, consensus, attempt.good);
     if (!scan) return;
     const count = Object.keys(scan.values).length;
     const how = `Read by ${ENGINES[attempt.engine].name} in ${Math.max(1, Math.round(attempt.ms / 1000))} s.`;
@@ -82,6 +103,7 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
     if (scan.servingGrams) filled["servingGrams"] = String(scan.servingGrams);
     if (scan.servingLabel) filled["servingLabel"] = scan.servingLabel;
     if (scan.name && (!values["name"]?.trim() || scanned.has("name"))) filled["name"] = scan.name;
+    scanFilled.current = filled;
     setValues((prev) => {
       const next = { ...prev };
       for (const k of scanned) next[k] = k === "servingLabel" ? "1 serving" : k === "servingGrams" ? "100" : "";
@@ -91,7 +113,9 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
     // No model read all four key values cleanly: this is the best of what they read
     const weak = attempts.length > 1 && !attempt.good && !nextEngine(new Set(readyEngines()), attempts) ? "No model read the whole label cleanly; these are the best reading. " : "";
     const differ = disagreements(attempt.scan!, consensus).map((d) => `${fieldName(d.field)} (camera ${Math.round(d.live * 10) / 10}, photo ${Math.round(d.photo * 10) / 10})`);
-    const differs = differ.length ? `The camera frames and the photo read ${differ.join(", ")} differently; the camera's value is used, so check it. ` : "";
+    const differs = differ.length
+      ? `The camera frames and the photo read ${differ.join(", ")} differently; ${attempt.good ? "the photo's read was good, so its value is used" : "the camera's value is used"}, so check it. `
+      : "";
     setScanNote({
       text: `Filled ${count} nutrient${count === 1 ? "" : "s"} from the label (outlined). ${consensus ? `${Object.keys(consensus.values).length} settled over ${consensus.frames} camera frames. ` : ""}${how} ${weak}${differs}Check them against the label before saving. ${scan.warnings.join(" ")}`.trim(),
       error: scan.warnings.length > 0 || weak !== "" || differ.length > 0,
@@ -105,6 +129,7 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
     }
     setReview({ canvas, url: reviewUrl.current!, attempts, shown, consensus });
     setSelected(null);
+    setAssignments([]);
     const attempt = attempts[shown];
     if (attempt) apply(attempt, attempts, consensus);
   };
@@ -155,8 +180,11 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
   const saveToLab = async () => {
     if (!review) return;
     try {
-      await saveScanToLab(review.canvas, review.attempts, values["name"] ?? "", front ?? undefined);
-      setLab({ text: "Saved to the scan lab (Profile, Label scanner). The other models are reading it there.", error: false });
+      // The numbers the user labelled on the photo are the correct values
+      const correct: CorrectValues = Object.fromEntries(assignments.map((a) => [a.key, a.value]));
+      await saveScanToLab(review.canvas, review.attempts, values["name"] ?? "", front ?? undefined, correct);
+      const n = assignments.length;
+      setLab({ text: `Saved to the scan lab (Profile, Label scanner).${n ? ` ${n === 1 ? "The number" : `The ${n} numbers`} you labelled ${n === 1 ? "is its correct value" : "are its correct values"}.` : ""} The other models are reading it there.`, error: false });
     } catch (e) {
       setLab({ text: e instanceof Error ? e.message : "Could not save to the scan lab.", error: true });
     }
@@ -284,7 +312,7 @@ export default function CustomFoodForm({ onSaved, onClose }: CustomFoodFormProps
                 </div>
               )}
               {review.attempts[review.shown]?.result && review.attempts[review.shown]?.scan && (
-                <LabelReview imageUrl={review.url} result={review.attempts[review.shown]!.result!} scan={review.attempts[review.shown]!.scan!} selected={selected} onSelect={setSelected} />
+                <LabelReview imageUrl={review.url} result={review.attempts[review.shown]!.result!} scan={review.attempts[review.shown]!.scan!} selected={selected} onSelect={setSelected} assignments={assignments} servingGrams={Number(values["servingGrams"]) || 0} onAssign={assignBox} onUnassign={unassignBox} />
               )}
               {scanning === null && nextEngine(new Set(readyEngines()), review.attempts) && (
                 <button

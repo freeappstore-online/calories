@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { MICRO_DEFS } from "../data/types";
-import type { LabelScan, SourceKey } from "../lib/labelParser";
+import { assignValue, figureAt, KEY_OPTIONS, MORE_OPTIONS, optionKey, sameSpan, withAssignments, type Assignment, type AssignOption, type Basis, type Figure } from "../lib/assign";
+import type { LabelScan, SourceKey, Span } from "../lib/labelParser";
 import { highlightsOf, hitTest, type Highlight } from "../lib/ocr/provenance";
 import type { OcrResult, Point } from "../lib/ocr/types";
 import LabelOverlay, { fieldColor } from "./LabelOverlay";
@@ -19,6 +20,9 @@ const NAMES: Record<string, string> = {
   ...Object.fromEntries(MICRO_DEFS.map((m) => [m.key, m.label])),
 };
 export const fieldName = (k: SourceKey) => NAMES[k] ?? k;
+const optionName = (o: AssignOption) => (o === "kj" ? "Energy (kJ)" : o === "servingGrams" ? "Serving size (g)" : fieldName(o));
+/** Whole numbers, except small values where a decimal matters */
+const show = (v: number) => (v >= 10 ? String(Math.round(v)) : String(Math.round(v * 10) / 10));
 
 /** Legend order: the four key values and sugar first */
 const ORDER = ["calories", "protein", "carbs", "fat", "sugar", "fiber"];
@@ -50,26 +54,50 @@ interface LabelReviewProps {
   /** The field whose boxes are shown strongly (also set from the form) */
   selected: SourceKey | null;
   onSelect: (field: SourceKey | null) => void;
+  /** Numbers the user has labelled on the photo */
+  assignments: Assignment[];
+  /** The form's serving size in grams, which scales a per-100 g figure */
+  servingGrams: number;
+  onAssign: (a: Assignment) => void;
+  onUnassign: (span: Span) => void;
 }
 
 /**
  * What was recognised where: the photo with every line boxed faintly, and the text that fed each field in that field's
  * colour. The photo is small here; tap it to enlarge, and tap a box there to see what it read.
  */
-export default function LabelReview({ imageUrl, result, scan, selected, onSelect }: LabelReviewProps) {
-  const highlights = useMemo(() => highlightsOf(scan, result.lines), [scan, result]);
+export default function LabelReview({ imageUrl, result, scan, selected, onSelect, assignments, servingGrams, onAssign, onUnassign }: LabelReviewProps) {
+  const highlights = useMemo(() => withAssignments(highlightsOf(scan, result.lines), assignments, result.lines), [scan, result, assignments]);
   const fields = useMemo(() => [...new Set(highlights.map((h) => h.field))].sort((a, b) => rank(a) - rank(b)), [highlights]);
   const [enlarged, setEnlarged] = useState(false);
   const [zoom, setZoom] = useState(false);
   const [caption, setCaption] = useState<string | null>(null);
 
+  // The number last tapped, and the table column to take it from
+  const [pick, setPick] = useState<Figure | null>(null);
+  const [basis, setBasis] = useState<Basis>("serving");
+  useEffect(() => setPick(null), [result]);
+  // Per serving or per 100 g only matters when the label printed both
+  const twoColumns = useMemo(() => Object.values(scan.sources).some((src) => src?.column), [scan]);
+  const spanOfPick = (f: Figure): Span => ({ line: f.line, start: f.start, end: f.end });
+  const current = pick ? assignments.find((a) => sameSpan(a.span, spanOfPick(pick))) : undefined;
+
   const tap = (point: Point) => {
     const hit = hitTest(point, highlights, result.lines);
+    const lineIndex = hit.highlight ? hit.highlight.span.line : hit.line ? result.lines.indexOf(hit.line) : -1;
+    const fig = lineIndex >= 0 ? figureAt(result.lines[lineIndex]!, lineIndex, point) : undefined;
+    setPick(fig ?? null);
+    if (fig) {
+      const mine = assignments.find((a) => sameSpan(a.span, spanOfPick(fig)));
+      // Start from the column this line's figures were read from
+      const column = Object.values(scan.sources).find((src) => src?.column && src.spans.some((sp) => sp.line === fig.line))?.column;
+      setBasis(mine?.basis ?? column ?? "serving");
+    }
     if (hit.highlight) {
       const h = hit.highlight;
       onSelect(h.field);
-      const v = scan.values[h.field as keyof typeof scan.values];
-      setCaption(`"${h.text}" ${h.role === "name" ? "names" : "gave"} ${fieldName(h.field)}${v !== undefined && h.role === "figure" ? `: ${Math.round(v * 10) / 10}` : ""}`);
+      const v = assignments.find((a) => sameSpan(a.span, h.span))?.value ?? scan.values[h.field as keyof typeof scan.values];
+      setCaption(`"${h.text}" ${h.role === "name" ? "names" : "gave"} ${fieldName(h.field)}${v !== undefined && h.role === "figure" ? `: ${show(v)}` : ""}`);
     } else if (hit.line) {
       onSelect(null);
       setCaption(`"${hit.line.text}" was read but not used`);
@@ -77,6 +105,27 @@ export default function LabelReview({ imageUrl, result, scan, selected, onSelect
       onSelect(null);
       setCaption(null);
     }
+  };
+
+  const assignTo = (option: AssignOption, column: Basis) => {
+    if (!pick) return;
+    const r = assignValue(pick, option, column, servingGrams);
+    if ("error" in r) return setCaption(`${r.error} Pick another field.`);
+    const key = optionKey(option);
+    onAssign({ option, key, span: spanOfPick(pick), basis: column, text: pick.text, value: r.value });
+    onSelect(key);
+    setCaption(`"${pick.text}" set ${optionName(option)} to ${show(r.value)}${key !== "servingGrams" && column === "per100" ? " per serving, scaled from per 100 g" : ""}`);
+  };
+  const pickField = (v: string) => {
+    if (!pick) return;
+    if (v === "") {
+      onUnassign(spanOfPick(pick));
+      setCaption(`"${pick.text}" is not assigned`);
+    } else assignTo(v as AssignOption, basis);
+  };
+  const pickBasis = (b: Basis) => {
+    setBasis(b);
+    if (current) assignTo(current.option, b);
   };
 
   const chips = (
@@ -163,8 +212,58 @@ export default function LabelReview({ imageUrl, result, scan, selected, onSelect
           </div>
           <div className="shrink-0 p-3 space-y-2" style={{ borderTop: "1px solid var(--line)" }}>
             <p role="status" className="text-xs min-h-[1.25rem]" style={{ color: "var(--ink)" }}>
-              {caption ?? "Tap a box to see what it read and which field it fed."}
+              {caption ?? "Tap a box to see what it read and which field it fed. Tap a number to assign it to a field."}
             </p>
+            {pick && (
+              <div className="flex flex-wrap items-center gap-2" data-testid="assign-panel">
+                <label className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: "var(--ink)" }}>
+                  <span>&ldquo;{pick.text}&rdquo; is</span>
+                  <select
+                    aria-label="Assign to field"
+                    value={current?.option ?? highlights.find((h) => h.role === "figure" && sameSpan(h.span, spanOfPick(pick)))?.field ?? ""}
+                    onChange={(e) => pickField(e.target.value)}
+                    className="px-2 py-1 rounded-lg text-xs cursor-pointer"
+                    style={{ background: "var(--panel)", border: "1px solid var(--line)", color: "var(--ink)" }}
+                  >
+                    <option value="">Not assigned</option>
+                    {KEY_OPTIONS.map((o) => (
+                      <option key={o} value={o}>{optionName(o)}</option>
+                    ))}
+                    <optgroup label="More nutrients">
+                      {MORE_OPTIONS.map((o) => (
+                        <option key={o} value={o}>{optionName(o)}</option>
+                      ))}
+                    </optgroup>
+                  </select>
+                </label>
+                {twoColumns && (
+                  <div className="flex gap-1" role="group" aria-label="Table column">
+                    {(["serving", "per100"] as const).map((b) => (
+                      <button
+                        key={b}
+                        type="button"
+                        aria-pressed={basis === b}
+                        onClick={() => pickBasis(b)}
+                        className="px-2 py-1 rounded-full text-[0.6875rem] font-semibold cursor-pointer"
+                        style={{ background: basis === b ? "var(--accent)" : "var(--paper)", color: basis === b ? "#fff" : "var(--ink)", border: "1px solid var(--accent)" }}
+                      >
+                        {b === "serving" ? "Per serving" : "Per 100 g"}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {current && (
+                  <button
+                    type="button"
+                    onClick={() => pickField("")}
+                    className="px-2 py-1 rounded-lg text-[0.6875rem] font-semibold cursor-pointer"
+                    style={{ background: "var(--paper)", color: "var(--ink)", border: "1px solid var(--line)" }}
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            )}
             {chips}
           </div>
         </Modal>
