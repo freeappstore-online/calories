@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import type { DailyLog, DailyGoals, MealType, FoodEntry, SavedMeal } from "../data/types";
+import type { DailyLog, MealType, FoodEntry, SavedMeal } from "../data/types";
 import { sumEntries } from "../lib/nutrition";
 import { formatDate, shiftDate, today } from "../lib/dates";
 import TargetBars from "./TargetBars";
@@ -23,7 +23,6 @@ const MEALS: { id: MealType; label: string }[] = [
 interface DailyLogViewProps {
   date: string;
   log: DailyLog;
-  goals: DailyGoals;
   savedMeals: SavedMeal[];
   onDateChange: (date: string) => void;
   onLogChange: (log: DailyLog) => void;
@@ -36,7 +35,6 @@ interface DailyLogViewProps {
 export default function DailyLogView({
   date,
   log,
-  goals,
   savedMeals,
   onDateChange,
   onLogChange,
@@ -188,7 +186,7 @@ export default function DailyLogView({
       </div>
 
       {/* Daily targets */}
-      <TargetBars totals={totals} goals={goals} />
+      <TargetBars totals={totals} />
 
       <MicronutrientCard entries={log.entries} />
 

@@ -180,7 +180,6 @@ export default function App() {
             <DailyLogView
               date={date}
               log={log}
-              goals={goals}
               savedMeals={savedMeals}
               onDateChange={setDate}
               onLogChange={handleLogChange}

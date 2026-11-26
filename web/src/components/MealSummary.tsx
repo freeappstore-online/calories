@@ -47,7 +47,7 @@ export default function MealSummary({ label, entries, stepGrams, onStep }: MealS
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2 mb-1.5">
             <div className="text-sm font-bold min-w-0" style={{ color: "var(--ink)" }}>
-              <span style={{ color: "var(--accent)" }}>{t.calories} kcal</span> &middot; {grams} g
+              <span style={{ color: "#8b5cf6" }}>{t.calories} kcal</span> &middot; {grams} g
               {quickAdds > 0 && (
                 <span className="block text-[0.625rem] font-normal" style={{ color: "var(--muted)" }}>
                   + {quickAdds} quick add

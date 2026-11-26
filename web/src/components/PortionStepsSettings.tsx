@@ -4,27 +4,27 @@ import { getSettings, saveSettings, type Settings } from "../lib/settings";
 const FIELDS: { key: keyof Settings; label: string; hint: string }[] = [
   { key: "foodStepGrams", label: "Food − / + step", hint: "grams per tap on a food" },
   { key: "mealStepGrams", label: "Meal − / + step", hint: "grams per tap on a whole meal" },
+  { key: "macroBarGrams", label: "Daily bar scale", hint: "grams across the full protein/carbs/fat/sugar bars" },
 ];
 
-/** Profile section: grams per tap for the Log's −/+ buttons */
+/** Profile section: −/+ step sizes and the daily bar scale for the Log */
 export default function PortionStepsSettings() {
   const [text, setText] = useState(() => {
     const s = getSettings();
-    return { foodStepGrams: String(s.foodStepGrams), mealStepGrams: String(s.mealStepGrams) };
+    return Object.fromEntries(FIELDS.map((f) => [f.key, String(s[f.key])])) as Record<keyof Settings, string>;
   });
 
   const update = (key: keyof Settings, value: string) => {
     const next = { ...text, [key]: value };
     setText(next);
-    const food = Math.round(Number(next.foodStepGrams));
-    const meal = Math.round(Number(next.mealStepGrams));
-    if (food >= 1 && meal >= 1) saveSettings({ foodStepGrams: food, mealStepGrams: meal });
+    const values = Object.fromEntries(FIELDS.map((f) => [f.key, Math.round(Number(next[f.key]))]));
+    if (FIELDS.every((f) => values[f.key]! >= 1)) saveSettings(values as unknown as Settings);
   };
 
   return (
     <div className="rounded-xl p-4 space-y-3" style={{ background: "var(--panel)", border: "1px solid var(--line)" }}>
       <h2 className="text-sm font-bold" style={{ color: "var(--ink)" }}>
-        Portion steps
+        Log display
       </h2>
       {FIELDS.map((f) => {
         const invalid = !(Math.round(Number(text[f.key])) >= 1);
